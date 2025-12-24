@@ -500,3 +500,94 @@ If you want, paste the output of:
 ```bash
 ls -la ~/.ssh
 ```
+
+## Now clone OUR repo from GitHub to local machine
+
+```bash
+git clone 'heresshfromgithub'
+```
+
+## Branching
+
+```bash
+git checkout -b brannchname
+# to create a cnd change the branch locally (github knows nothing about it)
+
+git branch
+# to see which branch you are at (locally)
+```
+
+after changes in our code:
+
+```bash
+git add .
+git commit -m 'Added login page'
+#thats commited to my local repo
+
+git push -u origin feature/login
+# now i create a new branch remotely (if it doesnt exist already) and i push my code there
+# when i go to my repo in GitHub: i can see compaire & pull request
+
+# then i click pull request, add a title and description, then create, then the owner of repository can check the code and they will choose if they want to merge the pull request. and then it will be successfulyy merged and we can choose to delete the branch.
+
+git checkout main
+# go to main branch locally
+
+# since i am not up to date on local main with my remote main -> i need to pull latest main:
+git pull origin main
+# now i will see my changes and i am up to date with latest changes
+
+git branch
+# it will show all exisitng branches and star next to active branch.
+
+# i also potentially could merge my new feature/login branch into main locally with this command:
+git merge feature/login
+# then i could push main to repo (another way)
+
+git branch -d feature/login
+#that would delete the branch locally
+```
+
+## Naming conventions for branches: why feature/login?
+
+- It’s a convention, not a Git rule. Teams use it to make branches easy to scan and automate.
+
+- feature/ = “type” of work (new functionality)
+
+- login = short description of the change
+
+Common prefixes you’ll see:
+
+- feature/... (new feature)
+
+- bugfix/... or fix/...
+
+- hotfix/... (urgent production fix)
+
+- chore/... (maintenance)
+
+- refactor/...
+
+- docs/...
+
+Is login a “branch under feature”?
+
+**No.** Git does not have nested branches.
+
+feature/login is just one branch name string that contains a /.
+
+**Why use / then?**
+
+Git and GitHub display it like a folder, which keeps lists tidy.
+
+It groups branches visually: all feature/\* together.
+
+## CI CI pipeline creation with versel.com -> basically same as netlify
+
+Hobby package is a free one
+
+All we need to do to deploy the app: new project. SInce i have logged in with github, i can see my github files
+
+So then i can deploy then i can continue to dashboard.
+
+now if we make a change to our code locally and push it to github -> then it will be automatically deployed to vercel
