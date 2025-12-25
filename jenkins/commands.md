@@ -95,3 +95,12 @@ archiveArtifacts artifacts: ‘build/\*\*’ → in case of success we save arti
 - `build/*.txt` - Only .txt files directly in the build directory (not in subdirectories)
 - `build/**/*.txt` - All .txt files in build and all subdirectories
 - `build/**/reports/*.xml` - All .xml files in any "reports" folder under build
+
+PID = Process ID
+To see processes command in terminal:
+
+```bash
+ps
+```
+
+![](images/screenshot-20251225-142831.png)
