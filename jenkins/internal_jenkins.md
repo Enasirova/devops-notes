@@ -701,6 +701,74 @@ Contains:
 
 - basic tools (curl, bash, ca-certificates)
 
+  **curl** = command-line tool used to send requests to URLs and receive responses. Curl lets you talk to servers from the terminal. you can
+
+  - fetch a webpage
+
+    - **fetch a webpage** meams **download the content of a webpage from a server**
+
+          When you run:
+
+          curl https://example.com
+
+          curl:
+          1️⃣ sends a request to the web server
+          2️⃣ the server responds with data
+          3️⃣ curl prints that data to your terminal
+
+          That data is usually HTML.
+
+          What you see vs what a browser shows
+
+          Browser
+          * downloads HTML
+          * downloads CSS, images, JS
+          * executes JavaScript
+          * renders a nice page
+
+          curl
+          * downloads only the raw response
+          * no rendering
+          * no JavaScript execution
+
+          So “fetch a webpage” with curl means:
+
+          “Give me the raw HTML the server sends.”
+
+          Concrete example
+          curl https://example.com
+
+
+          Output will look like:
+
+          <!doctype html>
+          <html>
+          <head>
+            <title>Example Domain</title>
+          </head>
+          <body>
+            <h1>Example Domain</h1>
+          </body>
+          </html>
+
+
+          That is the webpage, just not visually rendered.
+
+          Why this matters in DevOps
+
+          You often only care:
+
+          Did the server respond?
+
+          Was it status 200 or 500?
+
+          What data did it return?
+
+  - call an API
+  - send data (JSON, forms)
+  - test if a service is alive
+  - debug network issues
+
 👉 Almost every agent depends on this
 
 2️⃣ Java Base
@@ -718,6 +786,130 @@ Adds:
 👉 All Java-based builds depend on this
 
 3️⃣ Maven Agent
+
+    -> **MAVEN**
+    Maven is a build and dependency management tool for Java projects.
+
+      In plain language:
+
+      Maven downloads libraries, builds your app, and packages it in a repeatable way.
+
+      The problem Maven solves (why it exists)
+
+      Without Maven, you would have to:
+
+      manually download .jar files
+
+      keep track of versions
+
+      configure classpaths
+
+      explain to teammates how to build the app
+
+      👉 This is messy and error-prone.
+
+      Maven automates all of this.
+
+      What Maven actually does (3 core jobs)
+      1️⃣ Dependency management
+
+      You declare what libraries you need:
+
+      <dependency>
+        <groupId>org.springframework</groupId>
+        <artifactId>spring-core</artifactId>
+        <version>6.1.2</version>
+      </dependency>
+
+
+      Maven:
+
+      downloads it automatically
+
+      downloads its dependencies
+
+      keeps versions consistent
+
+      2️⃣ Build automation
+
+      You run:
+
+      mvn package
+
+
+      Maven:
+
+      compiles Java code
+
+      runs tests
+
+      packages the app (usually into a .jar or .war)
+
+      Same command works:
+
+      on your laptop
+
+      on CI server
+
+      inside Docker
+
+      3️⃣ Standard project structure
+
+      Maven enforces a convention:
+
+      src/main/java
+      src/main/resources
+      src/test/java
+      target/
+
+
+      Everyone knows where things are → less chaos.
+
+      Very common Maven commands
+      mvn clean       # delete old build files
+      mvn compile    # compile code
+      mvn test       # run tests
+      mvn package    # build .jar/.war
+      mvn install    # put artifact into local repo
+
+      Where Maven fits in DevOps
+
+      Typical CI/CD flow:
+
+      Git commit
+      → CI runs mvn test
+      → CI runs mvn package
+      → Docker image built
+      → App deployed
+
+
+      Maven is often used:
+
+      in Jenkins pipelines
+
+      inside Dockerfiles
+
+      with artifact repositories (Nexus, Artifactory)
+
+      Mental model (important)
+
+      Think of Maven as:
+
+      npm for Java
+      or
+      a recipe that tells machines how to build your Java app
+
+      One-sentence takeaway
+
+      Maven makes Java projects buildable, repeatable, and dependency-safe — locally and in CI/CD.
+
+      If you want next, I can:
+
+      explain pom.xml line by line
+
+      compare Maven vs Gradle
+
+      show how Maven is used inside a Dockerfile
 
 Built **FROM Java Base**
 
@@ -820,3 +1012,5 @@ Tools mentioned:
 
 Example:
 Helm manages versioned deployment of app into OpenShift cluster.
+
+Continue from chat Recap with IT terms 5) Build Tools Agent (buildup)
