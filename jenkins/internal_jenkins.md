@@ -1013,4 +1013,91 @@ Tools mentioned:
 Example:
 Helm manages versioned deployment of app into OpenShift cluster.
 
-Continue from chat Recap with IT terms 5) Build Tools Agent (buildup)
+# Jenkins <-> Openshift connection
+
+- Jenkins runs the controller (master)
+- OpenShift runs build agents as containers
+- Pipelines spin up contaners dynamically to run jobs
+
+**Example:** Developer triggers a pipeline → Jenkins assigns agent → OpenShift launches container → job runs inside that container.
+
+    👨‍💻 Developer clicks “run pipeline”
+
+    “Hey Jenkins, please build my app.”
+
+    🧑‍💼 Jenkins (the boss) looks at the job
+
+    “I need a worker to do this.”
+
+    🏭 Jenkins asks OpenShift
+
+    “Create me a worker with these tools.”
+
+    📦 OpenShift creates a container
+
+    This container is the agent.
+
+    It has Java / Maven / Node / whatever is needed.
+
+    ⚙️ Job runs inside that container
+
+    Build
+
+    Tests
+
+    Packaging
+
+    🗑️ Job finishes → container disappears
+
+    No wasted resources.
+
+    Clean every time.
+
+# Special "Priveleged" Agent Image
+
+**Privileged** means the container runs with elevated system permissions, allowing it to do powerful system-level tasks that normal containers are not allowed to do.
+
+**The special agent** is a small Java 17–based Jenkins agent image that runs in privileged mode, not because of Java itself, but because the jobs it runs need extra system permissions.
+
+Purpose: reduce size & network transfer. This image is downloaded for every pipeline run
+
+**The normal rule (what usually happens)**: teams create one or a few big “standard” agent images, those images contain:
+
+- Java
+
+- Maven
+
+- Git
+
+- curl
+
+- debugging tools
+
+- sometimes Docker, Node, etc.
+
+Why?
+
+- convenience
+
+- less maintenance
+
+- fewer images to manage
+
+👉 These images are large, but flexible.
+
+**The exception for this special "priveleged" Agent image**: tjos special agent:
+
+- does not reuse the big standard agent
+- does not include many tools
+- is intentially tiny
+- contains only Java 17 + bare minimum
+
+## Why to break this rule of big images and have tiny special image?
+
+- this agent is downloaded every pipeline run
+- startup speed matters more than convenience
+- network traffic becomes a bottleneck at scale
+
+Smaller images = faster pipeline start & reduced load.
+
+Continue from: 3) ImageRegistry, Quay (aka “Cay”), and ImageStreams
