@@ -1092,7 +1092,7 @@ Why?
 - is intentially tiny
 - contains only Java 17 + bare minimum
 
-## Why to break this rule of big images and have tiny special image?
+# Why to break this rule of big images and have tiny special image?
 
 - this agent is downloaded every pipeline run
 - startup speed matters more than convenience
@@ -1101,3 +1101,330 @@ Why?
 Smaller images = faster pipeline start & reduced load.
 
 Continue from: 3) ImageRegistry, Quay (aka “Cay”), and ImageStreams
+
+# ImageRegistry, Quay (aka “Cay”), and ImageStreams
+
+Image flow works like this:
+
+1. Images are stored in Quay (external registry).
+
+2. OpenShift creates ImageStreams, which act like links+cache.
+
+3. Jenkins agents pull images from OpenShift registry, not directly from Quay.
+
+**IT term: ImageStream** = OpenShift abstraction pointing to container images, enabling caching and versioning.
+
+Example:
+Instead of 30 pipelines downloading from Quay simultaneously → they download from OpenShift’s cached copy. This prevents overload on Quay during peak deployments.
+
+# Environment Variables & Host Resolution
+
+Agents inherit (when it starts it doesnt start empty, but gets prefilled with settings)
+
+- Variables for tools like Sonar, Java
+- Host mapping in /etc/hosts for internal IP resolution
+
+  **/etc/hosts** is a tiny text file inside Linux containers that can say: "When someone tries to reach jira.company.com, actually go to this IP address.”
+  So it’s like a mini phonebook inside the container.
+
+      What “host mapping” means
+
+      They add lines into /etc/hosts like:
+
+      10.x.x.x jira.company.com
+
+      Now, inside the container:
+
+      if a tool tries to open jira.company.com
+
+      it will be sent to 10.x.x.x
+
+_Why this is needed in OpenShift_:
+
+- Inside an OpenShift/Kubernetes cluster, networking often works differently: The public DNS might resolve jira.company.com to a public IP
+
+- But from inside the cluster, they want traffic to go to an internal IP (private network), like 10.x.x.x
+
+_Reasons this happens_:
+
+- internal routing is faster / cheaper
+
+- public route might be blocked from inside
+
+- security rules: internal systems only accept traffic from inside networks
+
+So they “override” the hostname → IP mapping inside the agent.
+**Example**:
+
+- Publicly, your laptop sees:
+  jira.company.com → public IP (internet-facing)
+
+- Inside OpenShift, they force:
+  jira.company.com → 10.x.x.x (private/internal)
+
+Result: the Jenkins agent can always reach Jira _reliably_ from inside the company network.
+
+# Build tools Agent
+
+- This agent is a special Jenkins worker container whose job is **deployment**.
+- Not building code.
+- Not running tests.
+- 👉 Pushing the app into OpenShift.
+
+So it contains deployment tools instead of programming tools.
+
+**What tools does it contain?**
+
+1. 1️⃣ OC (OpenShift CLI)
+
+   - OC is a command-line remote control for OpenShift
+
+   - It lets you say things like:
+
+   - “Deploy this app”
+
+   - “Restart these pods”
+
+   - “Check deployment status”
+
+   - Think:
+
+2. 2️⃣ Helm
+
+   - Helm is a packaging and templating tool
+   - It bundles:
+     - Kubernetes/OpenShift YAML files
+     - configuration values
+     - versions
+
+   **Helm = installer package for applications**
+
+   Instead of copying many files manually, Helm installs everything in one go.
+
+## Why put these tools into a special agent?
+
+Because:
+
+- not every pipeline step needs them
+- they are only used during deployment
+- keeping them separate keeps other agents smaller and safer
+
+So this agent exists only for: “I am about to deploy something.”
+
+The _Build Tools Agent_ is a Jenkins worker that contains deployment tools (Helm + OC) so pipelines can install, upgrade, and restart applications in OpenShift automatically.
+
+# Legacy: Docker Swarm & Testcontainers Problem
+
+Historical context:
+
+- Jenkins once used Docker Swarm to run agents.
+- Developers used Testcontainers, which relied on native Docker API.
+- OpenShift uses CRI-O instead of Docker — APIs differ.
+
+_IT term: Testcontainers_ = library to run lightweight containers during tests.
+_IT term: CRI-O_ = container runtime used by OpenShift.
+
+Workaround:
+Create an agent that contains Docker inside a container.
+
+Inception-like outcome:
+container → running Docker → running test containers.
+
+It’s a hack, but needed to support legacy tools.
+
+# Additional Agent Types Outside OpenShift:
+
+Even if:
+
+- most builds run in OpenShift containers
+
+👉 Jenkins is flexible and can use other machines too.
+
+## Those machines can be:
+
+- physical servers
+- virtual machines
+- laptops (in theory)
+
+These are real machines, not containers:
+
+- 🪟 Windows machines
+- 🐧 Linux machines
+
+They already exist and keep running all the time.
+
+## How does Jenkins talk to them?
+
+Using SSH.
+
+**SSH = secure remote control**
+
+It lets Jenkins:
+
+- log in to another machine
+- run commands there
+- copy files
+- get results back
+
+All securely.
+
+SSH = Jenkins typing commands on another computer from far away.
+
+## Why would you need machines outside OpenShift?
+
+Because some things cannot run in containers easily.
+
+**Example: Windows builds**
+
+- .NET apps
+
+  - **.NET apps** are applications built with Microsoft’s .NET platform, and many of them require Windows, which is why Jenkins sometimes uses Windows machines instead of OpenShift containers to build them.
+
+- Windows-only tools
+- Software that needs Windows APIs
+
+You cannot run these in Linux containers.
+
+So instead:
+
+- Jenkins connects to a Windows server
+- runs the build there
+- gets the results
+
+**Concrete example**
+
+Jenkins pipeline starts
+
+- Jenkins says: “This job needs Windows”
+- Jenkins connects via SSH to a Windows server
+- The build runs on that Windows machine
+- Jenkins collects the output\*
+
+# Jenkins Configuration as Code (JCasC)
+
+Configuration is stored in jenkins.yaml.
+
+Key points:
+
+- GUI changes must be replicated in YAML
+- YAML ensures persistence across restarts
+- Export tool does NOT generate perfect config — manual adjustments needed
+
+  - The export tool:
+    - looks at your already-configured Jenkins
+    - tries to convert the current UI configuration into YAML
+    * the exported YAML is: a starting point, not production-ready
+
+**IT term: JCasC** = plugin enabling YAML-based Jenkins configuration.
+
+Example:
+Add new AD group in GUI → also update YAML → apply configuration.
+
+# Update & Error Handling
+
+Process:
+
+- Update plugins
+- Update Jenkins core
+- Update plugins again
+- Restart
+
+If config is invalid:
+
+- Jenkins boot halts
+- Error appears in logs
+
+There is an option to continue boot even if config fails — but admin avoids it to catch errors.
+
+# Credentials Management
+
+Stored credentials include:
+
+- Bitbucket tokens
+- Jira credentials
+- SSH keys
+
+Developers reference credentials using variables.
+
+_IT term: base64 encoding_ = representation of binary data in ASCII text.
+
+Example workflow:
+
+- Developer references $BITBUCKET_TOKEN
+- Jenkins injects the actual token from credential store
+
+Important detail:
+
+- Shared pipelines sometimes hardcode passwords → bad practice → painful during password changes.
+
+# Active Directory Authentication
+
+Jenkins uses AD for login:
+
+- AD groups govern roles
+- Some login slowness exists
+- Still unresolved, but optimized where possible
+
+_IT term: AD = centralized user management system._
+
+Example:
+Member of AD_DEV_TEAM → gets access to folder Dev.
+
+# Roles & Permissions
+
+Two building blocks:
+
+- Roles = WHAT you can do (read/configure/build)
+- Folder assignment = WHERE you can do it
+
+**Example:**
+Role _mobile_admin_ applied to folder _/mobile-app_ enables:
+
+- read
+- configure
+- build
+
+Roles map to AD groups.
+
+# Script Approval
+
+Jenkins sometimes blocks scripts for security reasons.
+
+      Jenkins can run scripts (small programs) inside pipelines.
+
+      Some scripts are powerful.
+      Too powerful.
+
+      So Jenkins thinks:
+
+      “I don’t fully trust this script yet.”
+
+      And it blocks it.
+
+Admin can:
+
+- approve script
+- or reject it
+
+This happens rarely, but requires trust — because approval could open vulnerabilities.
+
+## What happens when a script is blocked?
+
+- Pipeline starts
+- Jenkins sees an unsafe operation
+- Jenkins stops the pipeline
+- Jenkins asks an admin for a decision
+
+This is called Script Approval.
+
+# Node =
+
+A node is one individual point in a system that is made of multiple connected parts.
+
+- A map of cities
+  → each city = a node
+  → roads = connections
+- A family tree
+  → each person = a node
+- A metro map
+  → each station = a node
