@@ -2342,3 +2342,155 @@ Because:
 
 This is a classic DevOps challenge:
 → dealing with upstream changes outside of your control.
+
+# Adding new MacOS Jenknis agent
+
+## Why a MacOS Agent?
+
+Some builds — especially iOS/macOS related — require a real Mac environment.
+
+Examples:
+
+- Xcode builds
+- signing Apple binaries
+  - binary = the final compiled program
+  * Signing Apple binaries means digitally stamping macOS or iOS apps with an Apple-approved certificate so the operating system trusts and allows them to run.
+- UI tests for macOS/iOS apps
+
+These cannot run in OpenShift containers.
+
+So they add:
+
+- MacOS QA 2 because MacOS QA 1 already exists.
+
+## Adding a New Node in Jenkins
+
+The presenter creates a new permanent agent (node).
+
+**IT term: Node / agent = a machine Jenkins connects to and uses to run jobs.**
+
+Configuration parameters include:
+
+- name (mac-os-qa-2)
+- labels (so that only Mac builds run here)
+- number of executors
+
+_IT term: executor = how many jobs can run at the same time on this agent._
+
+**Example:**
+Executors = 1 → only one job at a time.
+Executors = 4 → can build 4 things in parallel.
+
+## SSH Credentials Setup
+
+To let Jenkins connect to the Mac:
+
+- download an SSH private key
+- add it as credentials in Jenkins
+- assign username (for Mac) and SSH key
+
+_IT term: SSH = Secure Shell, a protocol for remote access._
+
+_IT term: private key = authentication token used instead of a password._
+
+This allows Jenkins controller to authenticate automatically.
+
+## Testing Connectivity & Firewall Problems
+
+The agent fails to connect.
+
+Reason:
+
+- firewall rules do not allow traffic from Jenkins → Mac
+
+_IT term: firewall = network security system controlling connections._
+
+Fix:
+
+- create a firewall ticket in Jira
+- request access for both TCP & UDP
+  - TCP = Transmission (sending data) Control (checking, correcting, managing) Protocol (agreed rules for communication)
+    - TCP sends data, checks it arrived, resends if something missing.
+    - TCP = safe, reliable way to send data
+  * UDP = User (application) Datagram (small data packet) Protocol
+    - sends data, does NOT check delivery, does NOT resend
+    * fast but unreliable way to send data
+- specify source = Jenkins server
+- destination = MacOS agent IP
+
+Example form fields:
+
+- source: Jenkins
+- destination: 10.x.x.x
+- ports: SSH (22)
+
+## Using Jira to Request Firewall Rules
+
+The presenter opens Jira and creates:
+
+- infrastructure firewall request ticket
+
+_IT term: Jira = issue tracking and project management tool._
+
+This demonstrates real-life DevOps cross-team dependency:
+
+- network team must approve firewall access
+
+## Persisting Configuration
+
+Changes must be stored in:
+
+`Jenkins.yaml`
+
+_IT term: Configuration as Code = storing Jenkins config in YAML, not just GUI._
+
+They:
+
+- add credentials
+- add node definition
+- verify fields like:
+  - SSH launcher
+  - number of executors
+  - labels
+
+This ensures:
+
+- configuration survives upgrades and restarts
+
+## Waiting for Firewall Approval
+
+Because the Mac is external to OpenShift:
+
+- firewall approval is required
+- request approval may take 1–3 days
+- no agent test until approval
+
+This contrasts with OpenShift-based agents:
+
+- created by modifying Dockerfile
+- added to Jenkinsfile
+- no firewall needed
+
+So:
+Mac/Windows/Linux nodes outside container cluster require networking setup.
+
+## Communication & SLA Insight
+
+Presenter notes:
+
+- response time used to be faster
+- approvals now take 1–2+ days
+- vacations extend approval time
+
+This shows real organizational constraints.
+
+## Practical Insights
+
+Key takeaways:
+
+- MacOS agents must be created manually
+- Jenkins uses SSH launcher for external nodes
+- firewall rules are mandatory
+- node config must be persisted in YAML
+- Mac agents are used mainly for specialized builds
+- OpenShift agents are preferred for everything else
