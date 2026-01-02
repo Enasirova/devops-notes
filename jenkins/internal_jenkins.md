@@ -1799,3 +1799,357 @@ Certificates expire in 2026 — noted for future renewal.
 - Script Console provides admin power but risk.
 - CSP issues require Java-level fixes.
 - VM, certificates, storage → important infra pieces.
+
+# OpenShift as the Runtime for Agents
+
+- Jenkins needs agents (workers) to do jobs
+
+- “Runtime” means where those workers actually run
+
+**OpenShift is the place where Jenkins agents live and run.**
+
+**OpenShift:**
+
+- creates containers
+- runs them
+- deletes them after the job is done
+
+So when Jenkins needs a worker:
+
+- Jenkins asks OpenShift
+- OpenShift starts a container
+- That container becomes a Jenkins agent
+
+**A cluster is:**
+
+- a group of machines
+- working together
+- acting like one big computer
+
+**“Management cluster”** means: this cluster is used for internal company services, not customer apps. Jenkins is an internal tool → it belongs there.
+
+**A namespace is:**
+
+- a folder / box inside a cluster
+- used to organize and isolate things
+
+Think:
+
+- Cluster = building
+- Namespace = one room in that building
+
+**Why jenkins-shared?**
+
+The name tells you:
+
+- Jenkins resources are grouped together
+- shared by teams
+- isolated from other systems
+
+So they live in one dedicated space:
+
+- Jenkins agents
+- Jenkins-related pods
+
+### Put it all together
+
+_Jenkins creates its worker containers in OpenShift.
+They run in the company’s management cluster, inside a dedicated namespace called `jenkins-shared`._
+
+**PVC = Persistent Volume Claim**
+“I need a piece of disk storage that does NOT disappear when my container stops.”
+
+      Example:
+      All Jenkins agents run in one namespace so logs, pods, and PVCs are centralized.
+
+      They observe failed pods and delete them to clean the environment.
+      Failed pods = crashed or terminated agent containers.
+
+# Two Ways to Interact with OpenShift
+
+You can manage OpenShift via:
+
+- web GUI
+- CLI using oc
+
+_IT term: oc = command-line tool for OpenShift_ , like kubectl but Red Hat specific.
+
+Downloading the CLI:
+
+- from web console
+- supports Linux/Mac/Windows
+
+Example usage:
+
+```pgsql
+oc get pods
+oc delete pod <name>
+```
+
+# OpenShift Repository Structure
+
+Inside the Bitbucket repo, a folder contains:
+
+```
+OCP/
+   roles
+   bindings
+   credentials
+   PVC templates
+```
+
+These define:
+
+- roles for OpenShift
+- persistent storage
+- secrets needed by agents
+
+_IT term: PVC (Persistent Volume Claim) = reserved disk storage inside OpenShift._
+
+Example:
+Maven cache can be 300GB, so it is stored in a PVC.
+
+# Caching & Storage Strategies
+
+Caches reduce network traffic during pipeline runs:
+
+- Maven cache
+- Chrome binaries
+- NPM cache
+- Rush cache
+
+Different tool versions sometimes need:
+
+- different cache directories
+- different PVCs
+
+Reason:
+Caches are not compatible across versions.
+
+Example:
+
+```pgsql
+node18-cache
+node20-cache
+node22-cache
+```
+
+# Rebuilding Agents & Cascading Builds
+
+When base images are updated:
+
+- dependent agents rebuild automatically
+- but errors may interrupt cascading builds
+
+To trigger rebuild:
+
+- add a comment line to Dockerfile (# trigger build)
+
+This forces Jenkins to treat it as a change.
+
+**Example:**
+slave-base-java17 → rebuild triggers all agents based on Java 17.
+
+# Docker-in-Docker (DinD) & Testcontainers
+
+Some developers use **Testcontainers**, which requires Docker API.
+
+OpenShift uses CRI-O, not Docker → APIs differ.
+
+Solution:
+
+- run a “Docker-in-Docker” container as a sidecar
+- expose Docker API over port 2375
+
+**IT term: sidecar = secondary container in same pod providing service to main container.**
+
+**Problem:**
+Startup timing issues → must loop/wait until Docker API is ready.
+
+Example pseudo-code:
+
+```bash
+while !docker info; do sleep 1; done
+```
+
+# Resource Tuning for Agents
+
+## What “resource tuning” means
+
+Every Jenkins agent (container) needs:
+
+- **CPU →** how much computing power
+- **Memory (RAM)** → how much it can keep in its head
+
+OpenShift must know **how much to give it.**
+
+That’s where requests and limits come in.
+
+## CPU / Memory request (minimum)
+
+**Request** means:
+
+_“I need at least this much to start and work.”_
+
+- OpenShift reserves this amount
+- If the cluster can’t provide it → the agent won’t start
+
+Think:
+
+_Request = guaranteed minimum_
+
+## CPU / Memory limit (maximum)
+
+**Limit** means:
+
+_“I am not allowed to use more than this.”_
+
+If the agent tries to go beyond:
+
+- CPU → OpenShift slows it down
+- Memory → OpenShift kills it
+
+Think:
+
+_Limit = hard ceiling_
+
+## Why some pipelines need high requests
+
+Some jobs are **heavy**:
+
+🐳 Docker-in-Docker builds
+
+- building container images
+- running Docker inside Docker
+- very memory-hungry
+
+🧠 Complex pipelines
+
+- large builds
+- many tests
+- big dependency trees
+
+If request is too low:
+
+- agent struggles
+- build becomes slow or unstable
+
+## Example explained (very plainly)
+
+```makefile
+request: 1GB
+limit: 16GB
+```
+
+Means:
+
+- OpenShift guarantees 1 GB RAM
+- Agent can grow up to 16 GB RAM
+- But never more than 16 GB
+
+This gives:
+
+- flexibility when needed
+- protection for the cluster
+
+## What is OOM and why it matters
+
+**OOM = Out Of Memory**
+
+It happens when:
+
+- the agent uses more memory than its limit
+- OpenShift immediately kills the container
+
+Result:
+
+- build suddenly stops
+- logs show “OOMKilled”
+
+So tuning limits properly helps: avoid random pipeline crashes
+
+### Real-world analogy
+
+- Request = minimum salary you need to survive
+- Limit = credit card limit
+
+If you hit the limit → card blocked
+
+If you never get the minimum → you can’t start
+
+# Monitoring with Grafana
+
+Grafana dashboards help track:
+
+- CPU spikes
+- memory usage
+- agent failures
+
+_IT term: Grafana = tool for visualization of metrics._
+
+Helpful for:
+
+- diagnosing memory problems
+- deciding resource increases
+
+Example:
+
+- find pod name in Jenkins log
+- search it in Grafana
+- view historical graph
+
+# Persistent Volume Claims (PVC)
+
+PVCs store long-term data:
+
+- caches
+- configuration files
+- shared resources
+
+Each agent mounts PVCs differently.
+
+Example in YAML:
+
+```yaml
+persistentVolumeClaim:
+  claimName: maven-cache
+mountPath: /home/jenkins/.m2
+```
+
+# Nodes Outside OpenShift
+
+Not all agents run in containers.
+
+There are:
+
+- Mac nodes
+- Windows nodes
+- Linux nodes
+
+Used via SSH when:
+
+- platform-specific builds are required
+
+Example:
+
+- iOS builds → Mac
+- .NET builds → Windows
+
+# Testing & Upgrade Environment
+
+There is a dedicated test Jenkins instance:
+
+- used for testing upgrades
+- replicates production setup
+- used before upgrading main Jenkins
+
+Pipeline tests still often run on production because they are low-risk.
+
+# Certificates
+
+Certificates are added to agents to allow:
+
+- HTTPS communication
+- internal company systems access
+
+Cert expiring dates are tracked.
