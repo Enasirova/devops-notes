@@ -1428,3 +1428,374 @@ A node is one individual point in a system that is made of multiple connected pa
   → each person = a node
 - A metro map
   → each station = a node
+
+# Real Task: updating and building a new Jenkins agent
+
+Agent uses:
+
+- Gradle 8 instead of Gradle 7
+- Java 21 instead of Java 17
+
+      Mobile developers want Gradle 8 support → admins build agent with Java 21 & Gradle 8 → pipelines can then compile newer Android projects.
+
+**Gradle** is a build tool that automatically compiles, tests, and packages applications so builds are fast, repeatable, and reliable.
+
+Building usually means:
+
+- compiling source code
+- downloading required libraries
+- running tests
+- packaging everything into a final file (JAR, WAR, APK, etc.)
+
+**What Gradle does for you (step by step)**
+
+When you run Gradle, it:
+
+- 📥 Downloads dependencies
+-     libraries your app needs
+- 🧱 Compiles the code
+-     turns source code into runnable code
+- 🧪 Runs tests
+-     checks that code works
+- 📦 Packages the app
+-     creates the final output file
+
+Other Build Tool is **MAVEN**
+
+| Tool   | Style                          |
+| ------ | ------------------------------ |
+| Maven  | very strict, XML               |
+| Gradle | flexible, faster, script-based |
+
+_A project uses one build tool: Maven or Gradle_
+
+## How to tell which one your project uses
+
+Maven project → you will see:
+
+```pqsql
+pom.xml
+```
+
+Gradle project -> you will see:
+
+```pqsql
+build.gradle
+```
+
+or
+
+```pqsql
+build.gradle.kts
+```
+
+**In Jenkins pipelines you’ll see either:**:
+
+```bash
+mvn clean install
+```
+
+or
+
+```bash
+gradle build
+```
+
+## Repository and Access Setup
+
+The agent source code lives in Bitbucket.
+
+Some participants don’t have access → new permissions must be set.
+
+**IT term: Bitbucket** = Git repository hosting platform.
+
+Example:
+Agent Dockerfiles and Jenkinsfiles are stored and versioned there.
+
+## Base Image Selection
+
+The admin already prepared a base Docker image with Java 21.
+
+- They duplicate / rename existing agent image
+- Then update Gradle version variable
+
+_IT term: Docker image_ = template used to run containers.
+
+**Reasoning:**
+Reusing a base image avoids installing Java manually each time.
+
+## Downloading Gradle & Uploading to Nexus
+
+Gradle binaries are uploaded into a repository.
+
+- Nexus (or another artifact store) holds the Gradle binary for builds.
+
+**IT term: Nexus** = artifact repository for storing binaries.
+
+**Example:**
+Instead of downloading from the internet during build → agent fetches Gradle locally → faster & reliable.
+
+## Changing the Dockerfile
+
+Changes include:
+
+- updating Gradle version number
+- adjusting environment variables
+
+The Dockerfile defines:
+
+- base image
+- installed tools
+- dependencies
+
+## Updating Pipeline Logic (Jenkinsfile)
+
+The Jenkinsfile defines:
+
+- build steps
+- dependencies
+- triggers
+
+The admin updates the Jenkinsfile to:
+
+- add the new agent definition
+- define dependencies (base image → agent image)
+
+This ensures:
+
+- when base image changes → dependent agents rebuild automatically.
+
+This is called **cascade build dependency**.
+
+## Repository Creation in Quay
+
+Before building, an empty repository must exist in **Quay**.
+
+_IT term: Quay_ = container registry similar to Docker Hub.
+
+**Example:**
+gr-8-java-21 repo is created to host the finished image.
+
+They make it **public** to avoid permission issues.
+
+## ImageStreams & OpenShift Link
+
+After pushing to Quay:
+
+- OpenShift must import the image
+- via oc import-image
+
+_IT term: ImageStream_ = OpenShift mechanism linking container images.
+
+This lets Jenkins agents pull from OpenShift cache instead of external registry.
+
+## Building the Agent
+
+Pipeline builds the agent:
+
+- downloads Gradle
+- packages it
+- pushes image to Quay
+- OpenShift imports it automatically
+
+Some agents take:
+
+- 2–3 minutes
+- heavy Android ones up to ~20 minutes (many dependencies)
+
+## Making It Available to Jenkins
+
+Final step:
+
+- modify Jenkins YAML to define new agent template
+- remove ID field to avoid conflicts
+- assign proper name and resources
+
+**Example:**
+`gradle8-java21` added under Kubernetes pod templates.
+
+This ensures developers can select the new agent in their pipelines.
+
+## Testing the New Agent
+
+They run a trial pipeline:
+
+- select new agent
+- verify Gradle version
+- verify Java version
+- check console logs
+
+First run is slower (ImageStream cache warm-up).
+Subsequent runs are fast.
+
+## Trick: Decoding Passwords in Script Console
+
+The presenter shows a sensitive trick:
+
+- Jenkins has a Script Console
+- It can decrypt stored credentials
+- using internal master key
+
+_IT term: Script Console = tool to run Groovy code directly on Jenkins controller._
+
+**Important concept:**
+
+- This bypasses masked passwords from UI
+- It is powerful and risky
+- Only admins should use it
+
+Example use case:
+
+- debugging webhook access issues
+
+## CSP (Content Security Policy) Troubleshooting
+
+Issue: HTML report plugin blocked due to CSP.
+
+_IT term: CSP = browser security mechanism controlling what content can load._
+
+Workaround:
+
+- run Java argument to relax policy
+- add command to Jenkins startup options for persistence
+
+This is an advanced admin topic.
+
+## Jenkins Hardware Overview
+
+Jenkins master (main Jenkins server) runs on a VM:
+
+- behind HTTPS proxy/terminator
+
+  - HTTPS = encrypted web traffic
+  - **proxy** sits in front of Jenkins
+    _ accepts HTTPS connections from users
+    _ handles encryption
+    - forwards requests to Jenkins
+
+  * **terminator** = HTTPS encryption ends there, not inside Jenkins itself
+
+          **So Jenkins:**
+          * talks plain HTTP internally
+          * the proxy handles HTTPS for the outside world
+
+- certificate stored separately
+
+  - HTTPS needs a certificate (security file)
+
+    - That certificate:
+
+      - is NOT stored inside Jenkins
+      - is stored on the proxy server
+
+    - Why?
+
+      - easier renewal
+      - better security
+      - Jenkins stays simpler
+
+      **Think: Jenkins doesn’t deal with locks and keys — the proxy does.**
+
+- service handled via systemctl (system control)
+
+  - **systemctl** is a Linux tool to manage services
+    - **This means Jenkins: runs as a system service** and can be:
+      - started
+      - stopped
+      - restarted
+      - enabled at boot
+
+**🧠 Put together in plain English**
+Jenkins runs as a normal Linux service on a virtual machine.
+Users access it through a secure HTTPS proxy that handles certificates, while Jenkins itself runs behind it and is managed by systemctl.
+
+- **certificate = encryption credential**
+
+termination = handling SSL before forwarding traffic
+
+**File system** (how files stored on disk)
+
+Jenkins needs a lot of disk space because it stores:
+
+- job configs
+- build history
+- logs
+- artifacts
+
+**Jenkins home = main folder** (where everything important lives)
+
+**LVM** = Logical Volume Management: it lets Linux treat storage like _flevible blocks_ instead of fixed disks.
+
+With LVM, you can:
+
+- increase disk size later
+- add more space without reinstalling
+- avoid running out of disk space
+
+So this means: **Jenkins home sits on a disk that can grow when needed**
+
+### Why Jenkins needs LVM
+
+Because Jenkins data:
+
+- grows over time
+- is hard to predict
+- can suddenly explode (logs, artifacts)
+
+Using LVM prevents:
+
+- “disk full” disasters
+- painful migrations later
+
+### What a symlink is
+
+A symlink **(symbolic link)** is:
+
+- a shortcut
+- a pointer from one folder to another
+
+Example idea:
+
+- Jenkins thinks home is in /var/lib/jenkins
+- but the real data lives in /data/jenkins
+
+A symlink connects them.
+
+**Why use a symlink here**
+
+Symlinks allow:
+
+- moving Jenkins data without changing configs
+- switching storage locations easily
+- future migrations with minimal changes
+
+Think:
+
+Jenkins doesn’t care where the data is — the symlink handles it.
+
+**🧠 Put together in plain English**:
+
+_Jenkins stores its important data on a flexible, resizable disk (LVM), and uses a symlink so the data can be moved or resized later without breaking Jenkins._
+
+\*\*🧩 One-line takeaway
+
+Jenkins home is placed on a resizable LVM disk and linked with a symlink so storage can grow and move without pain.\*\*
+
+# Certificate Validity
+
+Certificates expire in 2026 — noted for future renewal.
+
+# Recap: To upgrade to gradle 8 and java 21:
+
+- Build new agent:
+
+  - Dockerfile edits
+  - Jenkinsfile edits
+  - registry setup
+  - OpenShift import
+  - YAML definition
+
+- Cascade dependencies simplify rebuilds.
+- Script Console provides admin power but risk.
+- CSP issues require Java-level fixes.
+- VM, certificates, storage → important infra pieces.
