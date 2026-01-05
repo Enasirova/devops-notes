@@ -2494,3 +2494,326 @@ Key takeaways:
 - node config must be persisted in YAML
 - Mac agents are used mainly for specialized builds
 - OpenShift agents are preferred for everything else
+
+# Applications and tools used alongside Jenkins:
+
+## Bitbucket
+
+## Vault
+
+- stores secure credentials
+- used for Kubernetes/OpenShift authentication
+- secrets can be injected into pipelines
+
+_IT term: secret = password/token/credential used by automation._
+
+Example:
+Pipeline asks Vault → receives token → logs into OpenShift.
+
+## Nexus
+
+- stores build artifacts
+- proxies external package repositories
+- provides consistent internal URLs
+
+Example:
+Store Gradle version or .jar library so it doesn’t need to be downloaded from internet.
+
+## Quay
+
+- container registry
+- used for storing built container images
+
+Example:
+Agent images or application release images.
+
+## SonarQube
+
+- analyzes code for bugs & quality
+- provides dashboards
+- can break pipelines if quality gates fail
+
+_IT term: Quality Gate = rules that code must meet._
+
+Example:
+If 50% new code is untested → pipeline fails.
+
+## OWASP Lists
+
+- provides vulnerability CVE lists
+- downloaded via Nexus proxy to avoid external rate limits
+
+_CVE = Common Vulnerabilities and Exposures: catalog of known security issues._
+
+Integration: Sonar + OWASP → vulnerability checking.
+
+## Core Jenkins + Bitbucket Mechanism: Webhooks
+
+The presenter demonstrates:
+
+- deleting webhook → no build triggered
+- re-applying configuration → webhook recreated
+- pushing code → build triggered again
+
+This shows:
+
+- Jenkins plugin automatically creates webhook when configured properly
+- breaking webhook = breaking CI/CD automation
+
+Also reminder:
+
+- SSH over port 7999 for Bitbucket, not default 22
+
+IT term: port = network endpoint.
+
+1️⃣ A network is:
+
+- computers connected together
+- able to send data to each other
+
+Example:
+
+- internet
+- company internal network
+
+2️⃣ An endpoint is:
+
+- the exact place where communication starts or ends
+
+3️⃣ A port is:
+
+- a numbered door on a computer that programs use to talk
+
+A computer can run:
+
+- many programs
+- at the same time
+
+Ports keep conversations _separate._
+
+## Using Vault in Pipelines
+
+Vault secrets stored as:
+
+- Docker config files
+- Kubernetes configs
+- environment variables
+
+Pipeline syntax example:
+
+```javascript
+withVault(...) {
+env.MYSECRET = vaultSecret
+}
+```
+
+This prevents:
+
+- hardcoded passwords
+- sharing full cluster access
+
+Namespaces limit access scope.
+
+## Using Nexus Internally vs External URLs
+
+Important point:
+
+**Internal agents cannot reliably reach external URLs (Ingress constraints).**
+Therefore:
+
+- Must use internal cluster URLs (service names)
+- Example:
+
+  - external: https://nexus.company.com
+  - internal: http://nexus-shared.svc:8081
+
+This ensures:
+
+- reliability
+- name resolution
+- avoids ingress routing issues
+
+_routing_ = choosing the path that traffic takes
+
+_ingress_ = traffic coming into a system from the network
+
+Understanding internal DNS is key in Kubernetes/OpenShift.
+
+## SonarQube & Vulnerability Workflows
+
+- Sonar analyzes code
+- uses OWASP data
+- Jenkins triggers Sonar scans
+
+Previous issue:
+
+- rate limiting → solved by routing via Nexus proxy
+
+  - **Rate limiting** means: “You are allowed to make only X requests in a certain time.”
+
+    External services do this to:
+
+    - protect themselves
+    - prevent overload
+    - stop abuse
+
+    So if you send too many requests:
+
+    - they start blocking you
+    - or slowing you down
+
+    Jenkins pipelines often:
+
+    - download dependencies
+    - from the internet
+    - again and again
+
+    If many pipelines run:
+
+    - request count explodes
+    - external service says: “Too many requests ❌”
+
+    Builds start failing.
+
+    **Nexus Repository proxy**:
+
+    A proxy in this context is: a middleman that sits between Jenkins and the internet.
+
+    Nexus:
+
+    - downloads files once
+    - stores them internally
+    - serves them to Jenkins afterward
+
+    Instead of: Jenkins → internet (every time)
+
+    They changed it to: Jenkins → Nexus → internet (only once)
+
+    So:
+
+    - fewer external requests
+    - rate limits are not hit
+
+    **What is proxy caching?**
+
+    Caching means: “Save a copy so you don’t have to fetch it again.”
+
+    Nexus cache:
+
+    - stores downloaded libraries
+    - reuses them for future builds
+
+Valid lesson:
+→ proxy caching prevents external bottlenecks.
+
+## Shared Libraries & Pipeline Reuse
+
+Presenter points to shared library repos:
+
+- common Groovy pipeline functions
+- reusable logic
+- consistent across teams
+
+_IT term: Shared Library = code repository used by multiple Jenkins pipelines._
+
+Example:
+Deployment logic shared instead of duplicated.
+
+## Disaster Recovery (DR) Strategy
+
+Key DR practices mentioned:
+
+- snapshot Jenkins server
+- backup Jenkins home via LVM
+- test restore on separate VM
+
+_IT term: Disaster Recovery = restoring service after major failure._
+
+Process:
+
+- snapshot volume
+- rsync to external server
+
+  - **rsync** is a tool that:
+
+    - copies files
+    - efficiently (only changes)
+    - to another machine
+
+  * to exteral server meaning copy the snapshot’s data to a separate backup server
+    - Why external?
+      - protection if the main server dies
+      - real backup, not same-machine copy
+
+* Unmount snapshot
+
+  - To **unmount** means: disconnect the snapshot from the system
+
+  Once copying is done:
+
+  - snapshot is no longer needed
+  - system releases it safely
+
+  Think: unplug the external drive 🔌
+
+* clean snapshot: delete the snapshot to free space
+
+## Troubleshooting in Jenkins + OpenShift
+
+Important troubleshooting workflow:
+
+- open failed build
+- click “Replay”
+- start interactive shell (oc rsh)
+- enter correct container (NOT jnlp)
+- test commands
+
+Use cases:
+
+- proxy issues
+- missing dependencies
+- DNS problems
+
+Proxy variations by environment:
+
+- .6 → test
+- .2 → production
+- .20 → validation
+
+Incorrect proxy = common failure.
+
+## Workspace Cleanup & Storage
+
+Workspaces on Jenkins controller can grow large.
+
+Example cleanup command:
+
+```arduino
+find . -mtime +90 -delete
+```
+
+Automate via cron or run manually.
+
+- **cron** = a built-in Linux scheduler
+
+  It lets you say things like:
+
+  - “Run this script every night”
+  - “Run this every Sunday”
+  - “Run this at 2:00 AM”
+
+## HTML Publisher Plugin Issue
+
+One team uses HTML reporter plugin, hosted on Mac agent.
+
+Problem:
+
+- browser blocked assets due to Content Security Policy
+
+**IT term: CSP** = rules that define what external resources a webpage can load.
+
+Fix:
+
+- adjust CSP settings in Jenkins
+- temporarily applied via script console
+- needs to be made permanent via Jenkins service configuration
