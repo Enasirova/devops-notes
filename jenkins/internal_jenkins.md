@@ -32,6 +32,16 @@ Jenkins.yaml contains:
 
 - permissions
 
+  - there is also permission metrics in GUI
+    he puts "S-FEG-OCP_prod_p_jenkins_edit" to search for in configuration file
+    then he adds this entry to the file on the server
+
+    ![](images/screenshot-20260106-184751.png)
+
+    ![](images/screenshot-20260106-184824.png)
+
+    so we do it in GUI -> then we add it also in YAML, which is stored on the server
+
 - roles
 
 - agent configuration
@@ -47,6 +57,217 @@ One extra space can break a configuration:
 ```yaml
 agent:
   name: windows
+```
+
+# Connect to the Jenkins server (SSH)
+
+## Connect as my Linux user
+
+```bash
+ssh eka@jenkins01-ocp01-shared.m.dc1.ipa.ifortuna.cz
+```
+
+if succesfull i see:
+
+```
+eka@jenkins01-ocp01-shared:~$
+```
+
+## then I temporarily (if allowed) become root:
+
+```bash
+sudo -i
+```
+
+then prompt changes to:
+
+```
+root@jenkins01-ocp01-shared:~#
+```
+
+```pgsql
+    root@jenkins01-ocp01-shared.m.dc1.ipa.ifortuna.cz
+    │    │
+    │    └── hostname (server name)
+    └─────── user (root = administrator)
+
+```
+
+So:
+
+- jenkins01-ocp01-shared... = the Jenkins server
+- root = administrator account
+
+## Go to Jenkins configuration directory
+
+```bash
+cd /var/lib/jenkins
+```
+
+To see what’s inside:
+
+```
+ls
+```
+
+Example output:
+
+```bash
+jobs/
+plugins/
+secrets/
+jenkins.yaml
+```
+
+## View the YAML file (safe, read-only)
+
+```bash
+cat jenkins.yaml
+```
+
+or (better for beginners):
+
+```bash
+less jenkins.yaml
+```
+
+Tips for less:
+
+- scroll → arrow keys
+- quit → q
+
+## Create a backup copy of YAML file:
+
+```bash
+cp jenkins.yaml jenkins.yaml.20250602
+```
+
+- cp = copy
+- jenkins.yaml = source file
+- jenkins.yaml.20250602 = backup with date
+
+## Edit the YAML file
+
+Option A: `nano` (BEST for beginners)
+
+```bash
+nano jenkins.yaml
+```
+
+Inside nano:
+
+- edit text normally
+- save → CTRL + O, then Enter
+- exit → CTRL + X
+
+Option B: vim (you saw instructor use this)
+
+```bash
+vim jenkins.yaml
+```
+
+Minimal vim survival kit:
+
+- press i → start editing
+- edit text
+- press ESC
+- type :wq
+- press Enter
+- That’s it.
+
+### Search for authorizationStrategy inside vim:
+
+Inside `vim` you type:
+
+```
+/authorizationStrategy
+```
+
+- `/` = search forward
+- `authorizationStrategy is the text we are looking for
+
+Exit search mode: press `ESC`
+
+### Type new group to admin name roles:
+
+We copy pasted the group name from GUI configuration as a file into our Yaml on the server:
+
+![](images/screenshot-20260107-143707.png)
+
+## Check YAML syntax (optional)
+
+```bash
+yamllint jenkins.yaml
+```
+
+- If no output → good
+- If errors → fix indentation
+- (YAML is very sensitive to spaces!)
+
+## Review changes (compairing back up with actual yaml file)
+
+```bash
+diff jenkins.yaml jenkins.yaml.20250602 # review changes
+```
+
+## Tell Jenkins to reload configuration (not needed in our case)
+
+not needed here, cause GUI changes will be applied till the restart. Restart will happen if we do some plugin, upgrades etc)
+
+Restart Jenkins (most common)
+
+```bash
+systemctl restart jenkins
+```
+
+Check status:
+
+```bash
+systemctl status jenkins
+```
+
+### What a Jenkins restart actually does (in practice)
+
+- Jenkins controller stops
+- All running pipelines on the controller side are interrupted
+- Jenkins controller starts again
+- It reloads:
+  - plugins
+  - configuration (YAML)
+  - jobs
+- New jobs can start again
+
+What does NOT automatically stop:
+
+- containers already running in OpenShift may continue for a short time
+- but Jenkins loses control over them during restart
+
+**What is impacted by a restart**
+
+❌ Things that WILL be affected
+
+- Running pipelines (usually fail or pause)
+- Job scheduling
+- Web UI availability
+- Webhooks temporarily ignored
+
+✅ Things that are NOT lost
+
+- Job definitions
+- Build history
+- Artifacts
+- Configuration stored in YAML
+- Credentials (if stored properly)
+
+## Typical real workflow:
+
+```bash
+cd /var/lib/jenkins
+
+cp jenkins.yaml jenkins.yaml.20250602   # backup
+vim jenkins.yaml                        # edit
+diff jenkins.yaml jenkins.yaml.20250602 # review changes
+systemctl restart jenkins               # apply
 ```
 
 # GUI vs Persistence
