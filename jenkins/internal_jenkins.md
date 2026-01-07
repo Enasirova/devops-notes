@@ -282,27 +282,157 @@ systemctl restart jenkins               # apply
 
 # Agents and Pods
 
-**IT term: agent** = a machine that executes Jenkins jobs (builds, tests).
+**Jenkins runs builds inside containers, containers live inside pods, and pods run inside an OpenShift cluster.**
 
-**IT term: OpenShift** = a platform to run containers, often Kubernetes-based.
+```scss
+Cluster
+ └── Namespace (jenkins-shared)
+      └── Pod
+           ├── Container (jnlp)
+           └── Container (build: maven-java17)
+```
+
+## **cluster** = group of servers managed together that run containers for you
+
+- cluster = all the machines OpenShift controles
+  - those machines provide:
+    - CPU
+    - Memory
+    - storage
+    - networking
+
+* You never log into those machines directly for builds
+* OpenShift decides whre things run
+* Cluster = the whole OpenShift environment
+
+## **project (namespace)** inside the cluster, things are separated into **projects (namespaces)** For ex. `jenkins-shared`
+
+        So when it says:
+
+        “Where it runs: in the OpenShift cluster (jenkins-shared namespace)”
+
+        It means:
+
+        “Inside the cluster, but only in the Jenkins area”
+
+## **container** = a container is a running, isolated environment where a program executes (where build actually runs)
+
+What “isolated” means in practice:
+
+- its own filesystem view
+- its own processes
+- its own network space
+- its own environment variables
+- But it shares the same Linux kernel with the host.
+
+So:
+
+- it feels like its own mini-system
+- but it’s much lighter than a virtual machine
+
+  For Jenkins:
+
+  - a container runs:
+    - Maven
+    - Java
+    - Gradle
+    - shell commands
+  - executes your pipeline steps
+  - is temporary
+
+  Example:
+
+  - mvn clean package
+  - gradle build
+  - npm test
+
+  That all happens _inside a container_.
+
+  Important:
+
+  container = runtime
+
+  when it stops → build is over
+
+## **Pod** = pod is a wrapper that holds one or more containers and lets them work together.
+
+Containers alone:
+
+- can’t easily share network
+- can’t easily share storage
+- can’t easily be managed together
+
+Pods solve that.
+
+## Pod in Jenkins + OpenShift (very concrete)
+
+When you request a Jenkins agent like:
+
+`maven-java17`
+
+What actually happens is:
+
+1. Jenkins asks OpenShift: “I need one agent with Maven + Java 17”
+
+2. OpenShift creates one pod
+
+3. That pod contains containers, typically:
+
+   **Container 1: jnlp**
+
+   - talks to Jenkins controller
+   - handles job coordination
+
+   **Container 2: maven**
+
+   - has Java 17
+   - has Maven
+   - runs the build
+
+4. Jenkins runs the pipeline
+
+5. Build finishes
+
+6. Pod is destroyed
+
+## **agent** = a machine that executes Jenkins jobs (builds, tests).
+
+## Agent and Pod:
+
+When Jenkins needs an agent, it asks OpenShift to create a POD, and that pod acts as the Jenkins agent.
+
+So:
+
+- Jenkins agent = logical concept
+- Pod = technical implementation
+
+They are **not the same thing**, but in OpenShift they are **mapped 1:1 at runtime**.
+
+### How Jenkins and OpenShift connect
+
+When Jenkins needs an agent:
+
+1. Jenkins says:
+
+“I need an agent with label maven-java17”
+
+2. OpenShift plugin translates this into:
+
+“Create a pod using this pod template”
+
+3. OpenShift creates:
+
+- **one pod**
+- with one or more containers
+
+4. Jenkins connects to that pod and says:
+
+“You are now my agent”
+
+## OpenShift\*\* = a platform to run containers, often Kubernetes-based.
 
 Example:
 When Jenkins runs a build, the actual work might be done by an agent in OpenShift cluster.
-
-**Pod**
-
-- What it is: A Kubernetes/OpenShift concept - the smallest deployable unit in Kubernetes
-- Technical definition: A group of one or more containers that share storage and network resources
-- Where it runs: In the OpenShift cluster (in your case, the `jenkins-shared` namespace)
-- Lifecycle: Created dynamically, runs for the duration of the build, then gets destroyed
-- Example: When you request a `maven-java17` agent, OpenShift creates a pod containing containers with Maven and Java 17
-
-**Agent**
-
-- **What it is:** A Jenkins concept - a worker that executes build jobs
-- **Where it runs:** Can run anywhere - physical machines, VMs, Docker containers, or Kubernetes pods
-- **Lifecycle:** Jenkins perspective - an agent is "available" when it connects and "busy" when running a job
-- **Example:** In your Jenkinsfile, `agent { label 'maven-java17' }` requests a Jenkins agent
 
 **Relationship**
 In your Jenkins + OpenShift setup:
@@ -413,6 +543,124 @@ So they created a workaround: special agent in OpenShift that runs a container w
 
 Example:
 Test containers that require Docker API → must run on special agent.
+
+# OpenShift OC command-line tool (OpenShift CLI)
+
+Roman was connected to OpenShift using the oc command-line tool (OpenShift CLI).
+
+This is NOT Jenkins.
+
+This is the container platform where Jenkins agents run:
+
+![](images/screenshot-20260107-151406.png)
+
+```pgsql
+Logged into "https://api.ifortuna.cz:6443" as "prorom" using existing credentials.
+You have access to 171 projects, the list has been suppressed.
+Using project "jenkins-shared".
+```
+
+**Logged into "https://...:6443"**
+
+This means:
+
+- He is connected to an OpenShift cluster
+- :6443 is the Kubernetes API port
+- This is the central control endpoint of OpenShift
+
+Think of it as: _“I am now connected to the OpenShift control plane”_
+
+**as "prorom" using existing credentials.**
+
+This means:
+
+- he is authenticated as himself
+
+* He logged in earlier
+* OpenShift saved his login token
+* No need to retype password now
+
+**You have access to 171 projects**
+
+In OpenShift:
+
+- a project = namespace
+- it’s a logical environment
+
+Examples:
+
+- jenkins-shared
+- dev-app1
+- test-app2
+
+He has access to many, but OpenShift hides the list to avoid clutter.
+
+**Using project "jenkins-shared"**
+
+This is **very important.**
+
+It means: _“All commands I run now apply to the jenkins-shared namespace.”_
+
+This is where:
+
+- Jenkins agents run
+- Jenkins-related containers live
+
+## To see pods
+
+Type in OpenSHift CLI
+
+```bash
+ogp
+```
+
+or
+
+```bash
+oc get pods
+```
+
+Then you see table with pods
+
+```sql
+
+NAME                                  READY   STATUS    RESTARTS   AGE
+jenkins-agent-abc123                  2/2     Running   0          12m
+jenkins-agent-def456                  2/2     Running   1          3h
+
+```
+
+- **NAME**: autogenerated pod name. Each pod usually = one Jenkins agent
+- **READY**: 2 containers inside the pod, 2 are running correctly.
+  - Common Jenkins pod containers:
+    - `jnlp` (communication with Jenkins)
+    - `build` (actual build container)
+  * If you see 1/2 -> smth is wrong
+
+* **STATUS**: common values:
+
+  - Running ✅
+  - Pending (waiting for resources)
+  - CrashLoopBackOff ❌
+  - Completed (job finished)
+
+* **RESTARTS**:
+
+  - `1` means:
+    - a container crashed and restarted
+    - occasional 1 is normal
+    - growing numbers = problem
+
+* **AGE**: How long the pod has existed
+
+  - Example:
+    `` go
+12m`, `3h`, `2d`
+     ``
+
+  * Jenkins agents:
+    - appear when pipeline starts
+    - disappear when pipeline ends
 
 # Master vs Agents
 
@@ -901,6 +1149,91 @@ This affects design of apps and agents.
 - base images reused
 
 - cascade rebuild structure
+
+## Build of Jenkins own agents:
+
+Here is the link with
+https://ci.svc.ifortuna.cz/job/Openshift/job/ocp4_jenkins_docker_slaves/job/master/
+
+![](images/screenshot-20260107-200341.png)
+
+_Jenkins can ask OpenShift for an agent only if OpenShift already has an image to start that agent from._
+
+OpenShift **cannot invent an agent.**
+
+Jenkins does ONLY this:
+
+-> I need an agent with these characteristics:
+
+- Java 17
+- Maven
+- company certificates
+- proxy settings
+- correct user
+- correct tools..
+
+Jenkins does NOT:
+
+- install Java
+- install Maven
+- configure certificates
+- set proxies
+
+OpenShift does ONLY this:
+
+- “Start a pod from an image.”
+
+OpenShift does NOT:
+
+- install software
+- configure tools
+- customize environments
+
+**So who prepares the environment?** -> this job: https://ci.svc.ifortuna.cz/job/Openshift/job/ocp4_jenkins_docker_slaves/job/master/
+![](images/screenshot-20260107-201035.png)
+
+### Full Flow:
+
+**STEP 0 — PREPARATION**
+
+👉 Jenkins builds agent images:
+
+- slave-base
+- slave-base-java17
+- maven-java17
+- android-agent
+- jnlp
+
+These images are:
+
+- built once (or on change)
+- stored in a registry
+- reusable
+
+This is what this page is doing:
+
+![](images/screenshot-20260107-201207.png)
+
+**STEP 1**
+
+A developer pushes code.
+
+Jenkins says: “I need an agent with label `maven-java17`.”
+
+**STEP 2 — Jenkins → OpenShift**
+
+Jenkins tells OpenShift: “Start a pod using image `maven-java17`.”
+
+**STEP 3 — OpenShift’s job**
+
+OpenShift:
+
+- pulls image `maven-java17`
+- creates a pod
+- runs containers
+
+OpenShift does not build anything here.
+It only runs what already exists.
 
 For example:
 

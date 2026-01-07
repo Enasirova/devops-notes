@@ -41,3 +41,25 @@ or if there is a safe way to practice Jenkins Configuration as Code
 (test instance / test VM / walkthrough)?
 
 I’d like to understand the process properly, not change anything in prod.
+
+# get openshift CLI
+
+7️⃣ Can you access this?
+
+Right now: probably NO, and that’s normal.
+
+To access this, you need:
+
+OpenShift access granted
+
+a user (like prorom)
+
+correct project permissions
+
+VPN (often)
+
+This is usually handled by:
+
+instructor
+
+platform / infra team
