@@ -513,6 +513,9 @@ Steps are:
 
 1. Create folder / space in Jenkins.
 
+   - add access to this folder
+   - all bitbucket group assigned to this folder will be able to create jobs
+
 2. Update configuration-as-code files.
 
 3. IT term: Configuration as Code = storing Jenkins settings in text files rather than manual GUI edits.
@@ -765,6 +768,8 @@ Credentials are stored:
 
 - in Jenkins credentials store for technical accounts
 
+![](images/screenshot-20260108-154050.png)
+
 - in Vault for other secrets
 
 - Vault = secure storage for passwords, tokens, keys.
@@ -773,13 +778,18 @@ Credentials are stored:
 
 - Jobs wait in queue until an agent is free.
 
-- OpenShift migration → fewer stuck jobs.
+  ![](images/screenshot-20260108-155127.png)
 
+- OpenShift migration → fewer stuck jobs.
 - In case of old systems → jobs could hang → required manual container kill.
 
 # Console Output & Logs
 
-Jenkins console logs help troubleshoot:
+Jenkins console logs (#number of build -> click on it) help troubleshoot:
+
+![](images/screenshot-20260108-155250.png)
+
+![](images/screenshot-20260108-155318.png)
 
 - agent assignment
 
@@ -794,14 +804,22 @@ Gradle build logs → visible in console output.
 
 Most developers use multi-branch pipelines.
 
-- automatically detects branches in Bitbucket
+- new Item -> he will create folder (project)
+  - ![](images/screenshot-20260108-155644.png)
+  * then :
+    ![](images/screenshot-20260108-155712.png)
 
-- builds for each branch
+* automatically detects branches in Bitbucket (based on the url branch). Bitbucket will let jenkins know.
+
+* builds for each branch
 
 Example:
 Branch feature/login appears → Jenkins scans and builds it automatically.
 
 - Multi-branch = common
+
+example of branches and pull requests:
+![](images/screenshot-20260108-160329.png)
 
 - Default version = rarely used
 
@@ -1540,6 +1558,76 @@ Android Agent rebuilt
 
 Nothing else.
 
+# Fortuna Jenkins
+
+![](images/screenshot-20260108-151231.png)
+
+```sql
+    root@jenkins01-ocp01-shared.m.dc1.ipa.ifortuna.cz
+    │    │
+    │    └── hostname (server name)
+    └─────── user (root = administrator)
+```
+
+## lsof: list open files
+
+Jenkins listens to port 8080 by default:
+
+```bash
+lsof -i :8080
+```
+
+Output example:
+
+```nginx
+java  12345 jenkins  123u  IPv6  TCP *:8080 (LISTEN)
+```
+
+Meaning:
+
+- process: java
+- PID: 12345
+- user: jenkins
+- port: 8080
+
+👉 This tells you what is blocking the port
+
+## ss -tpan: socket statistics; tcp connections only; process information; all sockets; numeric output (shows ports as numbers)
+
+`ss -tpan` shows which processes are using which network ports right now.
+
+Think of it as:
+
+- modern replacement for netstat
+- faster alternative to lsof -i
+
+**Socket** = is one end of a communication channel.
+
+Think:
+
+- phone socket = where you plug the phone
+- network socket = where programs talk to the network
+
+A program uses a socket to:
+
+- send data
+- receive data
+
+## ss - tulnp: Shows all listening network ports and which programs are using them.
+
+```bash
+ss -tulnp
+```
+
+- ss → show network sockets
+- -t → TCP (web, Jenkins, SSH)
+- -u → UDP (DNS, streaming, etc.)
+- -l → listening only (servers waiting for connections)
+- -n → show numbers (8080, not names)
+- -p → show process name + PID
+
+![](images/screenshot-20260108-153126.png)
+
 # Registries & Artifacts
 
 Images are stored in:
@@ -1930,6 +2018,8 @@ Two building blocks:
 
 - Roles = WHAT you can do (read/configure/build)
 - Folder assignment = WHERE you can do it
+
+![](images/screenshot-20260108-153749.png)
 
 **Example:**
 Role _mobile_admin_ applied to folder _/mobile-app_ enables:
