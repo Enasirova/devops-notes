@@ -104,3 +104,203 @@ ps
 ```
 
 ![](images/screenshot-20251225-142831.png)
+
+# Commmands to login
+
+## Connect as my Linux user
+
+```bash
+ssh eka@jenkins01-ocp01-shared.m.dc1.ipa.ifortuna.cz
+```
+
+if succesfull i see:
+
+```
+eka@jenkins01-ocp01-shared:~$
+```
+
+## then I temporarily (if allowed) become root:
+
+```bash
+sudo -i
+```
+
+### sudo = super user do
+
+### i = login shell
+
+then prompt changes to:
+
+```
+root@jenkins01-ocp01-shared:~#
+```
+
+```pgsql
+    root@jenkins01-ocp01-shared.m.dc1.ipa.ifortuna.cz
+    │    │
+    │    └── hostname (server name)
+    └─────── user (root = administrator)
+
+```
+
+So:
+
+- jenkins01-ocp01-shared... = the Jenkins server
+- root = administrator account
+
+# Change configuration Jenkins file
+
+## Go to Jenkins configuration directory
+
+```bash
+cd /var/lib/jenkins
+```
+
+To see what’s inside:
+
+```
+ls
+```
+
+Example output:
+
+```bash
+jobs/
+plugins/
+secrets/
+jenkins.yaml
+```
+
+## View the YAML file (safe, read-only)
+
+```bash
+cat jenkins.yaml
+```
+
+or (better for beginners):
+
+```bash
+less jenkins.yaml
+```
+
+Tips for less:
+
+- scroll → arrow keys
+- quit → q
+
+## Create a backup copy of YAML file:
+
+```bash
+cp jenkins.yaml jenkins.yaml.20250602
+```
+
+- cp = copy
+- jenkins.yaml = source file
+- jenkins.yaml.20250602 = backup with date
+
+## Edit the YAML file
+
+Option A: `nano` (BEST for beginners)
+
+```bash
+nano jenkins.yaml
+```
+
+Inside nano:
+
+- edit text normally
+- save → CTRL + O, then Enter
+- exit → CTRL + X
+
+Option B: vim (you saw instructor use this)
+
+```bash
+vim jenkins.yaml
+```
+
+Minimal vim survival kit:
+
+- press i → start editing
+- edit text
+- press ESC
+- type :wq
+- press Enter
+- That’s it.
+
+### Search for authorizationStrategy inside vim:
+
+Inside `vim` you type:
+
+```
+/authorizationStrategy
+```
+
+- `/` = search forward
+- `authorizationStrategy is the text we are looking for
+
+Exit search mode: press `ESC`
+
+### Type new group to admin name roles:
+
+We copy pasted the group name from GUI configuration as a file into our Yaml on the server:
+
+![](images/screenshot-20260107-143707.png)
+
+## Check YAML syntax (optional)
+
+```bash
+yamllint jenkins.yaml
+```
+
+- If no output → good
+- If errors → fix indentation
+- (YAML is very sensitive to spaces!)
+
+## Review changes (compairing back up with actual yaml file)
+
+```bash
+diff jenkins.yaml jenkins.yaml.20250602 # review changes
+```
+
+## Tell Jenkins to reload configuration (not needed in our case)
+
+not needed here, cause GUI changes will be applied till the restart. Restart will happen if we do some plugin, upgrades etc)
+
+Restart Jenkins (most common)
+
+```bash
+systemctl restart jenkins
+```
+
+Check status:
+
+```bash
+systemctl status jenkins
+```
+
+## Jenkins home
+
+This command will show everything related to Jenkins (jobs, plugins etc):
+
+```bash
+ls -la /var/lib/jenkins/
+```
+
+![](images/screenshot-20260110-194201.png)
+
+## check installs, updates and stability:
+
+```bash
+cat /etc/yum.repos.d/jenkins.repo
+```
+
+shows where Jenkins packages are downloaded from, which is crucial for understanding installs, updates, and stability.
+
+## Run image from CLI:
+
+here is the base image indicated:
+![](images/screenshot-20260110-222430.png)
+
+```bash
+podman run -it registry.svc.ifortuna.cz/build-images/ubi8:latest
+```

@@ -432,7 +432,7 @@ When Jenkins needs an agent:
 ## OpenShift\*\* = a platform to run containers, often Kubernetes-based.
 
 Example:
-When Jenkins runs a build, the actual work might be done by an agent in OpenShift cluster.
+When Jenkins runs a build, the actual work might is done by an agent in OpenShift cluster.
 
 **Relationship**
 In your Jenkins + OpenShift setup:
@@ -535,9 +535,55 @@ Adding a folder via GUI → instant.
 
 Originally Jenkins agents were using Docker directly, but they moved workloads to OpenShift.
 
-- Docker = container platform
+## 🟦 Before the migration (classic setup)
 
-- OpenShift = enterprise Kubernetes-based platform
+```nginx
+Jenkins
+↓
+docker build
+↓
+docker run ← containers started directly on machines
+```
+
+Problems:
+
+- hard to scale
+- manual restarts
+- fragile deployments
+- poor isolation
+- hard ops
+
+🟩 After the migration (modern setup)
+
+```scss
+Jenkins
+↓
+docker build (or buildah)
+↓
+Image Registry
+↓
+OpenShift (Kubernetes)
+↓
+Pods running containers
+```
+
+So:
+
+- **Docker is used to build images**
+- **Kubernetes/OpenShift is used to run containers**
+
+* Docker = container platform
+
+* OpenShift = enterprise Kubernetes-based platform
+
+* Kubernetes = engine
+* OpenShift = enterprise platform around it
+
+-> **Docker** builds containers.
+
+-> **Kubernetes** runs containers.
+
+-> **OpenShift** manages Kubernetes for companies.
 
 Reason:
 Some tests used Docker API directly, which didn’t work well inside OpenShift.
@@ -661,9 +707,7 @@ jenkins-agent-def456                  2/2     Running   1          3h
 12m`, `3h`, `2d`
      ``
 
-  * Jenkins agents:
-    - appear when pipeline starts
-    - disappear when pipeline ends
+Jenkins agents: - appear when pipeline starts - disappear when pipeline ends
 
 # Master vs Agents
 
@@ -780,8 +824,80 @@ Credentials are stored:
 
   ![](images/screenshot-20260108-155127.png)
 
+## Why jobs still need to wait with Openshift:
+
+1. Cluster capacity is limited:
+
+   Your OpenShift cluster has:
+
+   - a finite number of nodes
+   - finite CPU & memory
+
+   If:
+
+   - all nodes are busy
+   - or resource limits are reached
+
+     👉 OpenShift cannot schedule new pods
+     👉 Jenkins agents cannot start
+     👉 Jobs wait in queue
+
+2. : Namespace quotas & limits
+
+   Each namespace (like jenkins-shared) often has:
+
+   - CPU quota
+   - memory quota
+   - pod limits
+
+   Example:
+
+   - max 20 Jenkins agent pods
+   - 20 builds running
+   - 21st build → queued
+
+   This is intentional, to protect the cluster.
+
+3. : Jenkins agent provisioning takes time
+
+   Even if scaling is possible:
+
+   - Jenkins requests a new agent
+   - OpenShift creates a pod
+   - image is pulled
+   - container starts
+   - agent connects back to Jenkins
+
+   That takes:
+
+   - seconds → minutes
+
+   During that time:
+
+   - job is technically “waiting”
+
+4. Concurrency limits (by design)
+
+   Often configured intentionally:
+
+   - max parallel builds
+   - max agents per label
+   - max pods per template
+
+   Why?
+
+   - avoid overload
+   - control costs
+   - avoid flaky builds
+
+   So even with free resources:
+   👉 Jenkins may not allow more agents.
+
 - OpenShift migration → fewer stuck jobs.
 - In case of old systems → jobs could hang → required manual container kill.
+
+Here we can see warning that some plugins are depreciated, so its good to remove them with next restart. Talk to developpers if they are used:
+![](images/screenshot-20260110-193644.png)
 
 # Console Output & Logs
 
@@ -851,7 +967,7 @@ This includes:
 
 - system configuration
 
-**Important point:** Plugins are the weakest link.
+## **Important point:** Plugins are the weakest link.
 
 If a plugin becomes outdated or unsupported, it may break dependencies.
 
@@ -874,6 +990,33 @@ Recommendations:
 Reason:
 Many plugins depend on others. Updates can create dependency hell.
 
+## Manage Jenkins -> System
+
+- here we specify home directory of jenkins:
+
+![](images/screenshot-20260110-194024.png)
+
+This command will show everything related to Jenkins (jobs, plugins etc):
+
+```bash
+ls -la /var/lib/jenkins/
+```
+
+![](images/screenshot-20260110-194201.png)
+
+## Manage Jenkins -> System Log
+
+not really used.
+
+Admins rarely need to check logs except for:
+
+- startup failures
+
+- update failures
+
+Example:
+If Jenkins fails to start → check service logs on server.
+
 # Jenkins Home & Logs
 
 Jenkins home directory stores:
@@ -888,14 +1031,107 @@ Jenkins home directory stores:
 
 **IT term: log** = a text output showing system events, errors, and activity.
 
-Admins rarely need to check logs except for:
+# /opt folder
 
-- startup failures
+![](images/screenshot-20260110-195748.png)
 
-- update failures
+**/opt** is a standard Linux directory.
 
-Example:
-If Jenkins fails to start → check service logs on server.
+## Meaning of /opt:
+
+Optional software installed by applications (not by the OS itself)
+
+Typical use:
+
+- tools
+- runtimes
+- application-specific binaries
+
+So /opt is often used for:
+
+- Java
+- Maven
+- Gradle
+- custom tools
+- Jenkins-related binaries
+
+In Jenkins (especially in containers / agents):
+
+/opt usually contains:
+
+- build tools (Maven, Gradle, Node, etc.)
+- language runtimes
+- Jenkins agent binaries
+- helper scripts
+
+In other words:
+
+**/opt = tooling area used during builds**
+
+It is not:
+
+- Jenkins home (/var/jenkins_home)
+- logs
+- configs
+
+It’s mainly **runtime** tools.
+
+## Inflating
+
+**“Inflating”** = growing uncontrollably in size
+
+Because during builds:
+
+- tools download dependencies
+- caches are stored
+- temporary files accumulate
+
+Examples:
+
+- Maven downloads dependencies
+- npm caches packages
+- Gradle caches artifacts
+- build tools unzip archives
+
+All of that can end up under /opt (or subfolders there).
+
+So:
+
+**/opt keeps getting bigger over time**
+
+    They removed hard-coded default configurations (like preinstalled tools, fixed paths, shared volumes, or global agent settings) that were applied to every Jenkins job, because those defaults caused problems such as disk growth, hidden dependencies, and inflexibility. By cleaning up these default entries, each pipeline or agent now explicitly defines what it needs (tools, versions, images, resources), which makes builds more predictable, easier to change, easier to scale, and safer in an OpenShift/Kubernetes environment where agents are meant to be ephemeral.
+
+# System -> Maven
+
+Its not used. Developers specify it in their projects
+
+# System -> Jenkins Url
+
+here we specify the url to acces jenkins
+
+# System -> Sonar Qube
+
+we use. important
+
+we also use testing sonar (for david to test updates)
+
+# System -> Bitbucekt Server
+
+important
+
+# System -> Vault
+
+important
+
+# System -> Jira
+
+important
+
+# Pipelines and system settings:
+
+pipelines use variables, which take data from Manage Jenkins -> system. its handy if some url is changed here -> then we dont change pipiline. Jenkins will inject new value to the code
+
+# System -> Libraries
 
 # Logging Tools
 
@@ -938,7 +1174,7 @@ Example:
 Pipeline uses Bitbucket token
 → instead of writing password in script, it references variable injected at runtime.
 
-# Pipeline Shared Libraries
+# Manage Jenkins -> System -> Pipeline Shared Libraries
 
 Jenkins has limitations:
 
@@ -1052,6 +1288,50 @@ c) runUITests() → QA team
 | Hard to test | Easy to test |
 | Everyone afraid to touch it | Safe to modify |
 
+## Fortuna reality:
+
+unfortunately doesnt use best practice.. many teams repeat code. its just used due to limitations of file reasons. they will add it in vars
+
+here is source code location configured in Jenkins -> System:
+
+![](images/screenshot-20260110-201813.png)
+
+** Link to shared library:**
+https://app-bitb-shared.o.dc1.cz.ipa.ifortuna.cz/projects/OS/repos/jenkins-shared-library/browse
+
+![](images/screenshot-20260110-202355.png)
+
+here are the vars he mentioned. you only use the things that are in vars: https://app-bitb-shared.o.dc1.cz.ipa.ifortuna.cz/projects/OS/repos/jenkins-shared-library/browse/vars
+
+![](images/screenshot-20260110-202633.png)
+
+Documentation on method code too large:
+https://docs.cloudbees.com/docs/cloudbees-ci-kb/latest/troubleshooting-guides/method-code-too-large-error
+
+Some teams have their own pipelines, for ex. Middleware:
+
+![](images/screenshot-20260110-203141.png)
+
+# System -> Git
+
+he thinks developers do it differently
+
+# System -> Extentded EMail NOtifications ->
+
+he thinks its not used. THey used their own commands
+
+# Manage Jenkins -> Tools
+
+## Git
+
+very important.
+
+# Manage Jenkins -> Plugins
+
+      The instructor explains that Jenkins is regularly backed up by copying its data to separate folders, and these backups can be downloaded and used locally to safely experiment, test changes, or even intentionally break Jenkins without risking production. For local testing, Jenkins YAML configuration must be adjusted so it does not connect to real OpenShift or external systems. The key message is that updates and risky changes should always be tested on a local or test setup first, never directly on the production Jenkins.
+
+![](images/screenshot-20260110-203828.png)
+
 # Update Procedures
 
 Admins describe:
@@ -1074,6 +1354,118 @@ Procedure:
 
 **Important:**
 Never update during major release periods.
+
+# Updates and YUM
+
+yum = Linux package manager
+
+**yum is the tool that installs, updates, and removes software on Red Hat–based Linux systems.**
+
+What does a package manager do?
+
+Instead of:
+
+- downloading software manually
+- figuring out dependencies
+- installing things by hand
+
+You do:
+
+```bash
+yum install jenkins
+```
+
+And yum:
+
+- downloads Jenkins
+- installs it
+- installs all required dependencies
+- keeps track of versions
+- allows safe updates
+
+## How yum actually works (important)
+
+`yum`:
+
+1. reads **repository files** from:
+
+```bash
+/etc/yum.repos.d/
+```
+
+2. each .repo file tells yum:
+
+- where to download packages from
+- whether the repo is enabled
+- how to verify packages
+
+So when you run:
+
+```bash
+yum install jenkins
+```
+
+`yum`:
+
+- looks at `jenkins.repo`
+- goes to the URL inside
+- downloads the Jenkins package
+- installs it
+
+        yum is the software installer and updater for Red Hat–based Linux systems, using repositories defined in /etc/yum.repos.d/.
+
+`cat /etc/yum.repos.d/jenkins.repo` shows where Jenkins packages are downloaded from, which is crucial for understanding installs, updates, and stability.
+
+What is inside jenkins.repo (conceptually)
+
+That file usually contains things like:
+
+- repository name
+- base URL (where Jenkins packages are hosted)
+- whether the repo is enabled
+- GPG key info (security / signature verification)
+
+Example (simplified):
+
+```ini
+
+[jenkins]
+name=Jenkins
+baseurl=https://pkg.jenkins.io/redhat-stable
+enabled=1
+gpgcheck=1
+```
+
+**Why the instructor ran this command**
+
+To verify where Jenkins is coming from and how it’s installed.
+
+Common reasons:
+
+- confirm which Jenkins repo is configured (stable vs weekly)
+- check if the repo is enabled
+- debug update or install issues
+- ensure Jenkins updates are controlled and reproducible
+- explain why a certain Jenkins version is installed
+
+# Manage Jenkins -> Clouds
+
+here is all config for Openshift:
+
+![](images/screenshot-20260110-221549.png)
+
+done via kubernetes plugin
+
+Those are agents:
+
+![](images/screenshot-20260110-221639.png)
+
+we create those, we have repo for them
+
+every agent has its own folder
+
+example:
+![](images/screenshot-20260110-221812.png)
 
 # Containers & Docker — Fundamental Concepts
 
