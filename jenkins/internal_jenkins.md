@@ -1,3 +1,5 @@
+
+
 # Nexus Issue
 
 He mentions a problem with Nexus, described as an artifactory system. Nexus problems may affect builds
@@ -523,6 +525,125 @@ Steps are:
 Example:
 Adding a new group to the YAML ensures the configuration survives Jenkins restarts.
 
+
+## Organizationally
+
+- Admins create folders & set access.
+
+- Teams configure their own pipelines.
+
+- Some unclear folder naming conventions.
+
+- Jira integration exists but not centrally managed.
+
+
+## Folders & Access Control
+
+Folders represent teams or shared projects.
+
+- access is controlled via Bitbucket groups
+
+- admins can see everything
+
+- regular teams see only assigned folders
+
+Example:
+
+- Team A sees Folder A
+
+- Team B sees Folder B
+
+Admins: full access.
+
+## adding a new groupe/role to Jenkins UI:
+
+Roles map to AD groups.
+
+![](images/screenshot-20260114-112000.png)
+
+* *Role akp can access the Jenkins folder AkpKom and everything inside it — nothing else.*
+
+here is the folder:
+
+![](images/screenshot-20260114-112657.png)
+
+how to do it in UI:
+
+In the Project roles section:
+In “Role to add”: type akp
+In “Pattern”: paste:
+^AkpKom|^AkpKom/.*
+Click Add:
+
+![](images/screenshot-20260114-114508.png)
+
+then check boxes on on the right side for that role:
+
+![](images/screenshot-20260114-114653.png)
+
+then go back to assign roles and add the group and check reader
+
+![](images/screenshot-20260114-122937.png)
+
+
+then update yaml (not exactly, adjust for actual yaml in fortuna):
+
+![](images/screenshot-20260114-113922.png)
+
+## Active Directory Authentication
+
+Jenkins uses AD for login:
+
+- AD groups govern roles
+- Some login slowness exists
+- Still unresolved, but optimized where possible
+
+_IT term: AD = centralized user management system._
+
+Example:
+Member of AD_DEV_TEAM → gets access to folder Dev.
+
+## Roles & Permissions
+
+Two building blocks:
+
+- Roles = WHAT you can do (read/configure/build)
+- Folder assignment = WHERE you can do it
+
+we have regular and admin role next to group name. for ex betsys and betsys admin. best is to compair side by side existing ui and existing yaml. its really hard in yaml 
+
+![](images/screenshot-20260114-202007.png)
+
+![](images/screenshot-20260108-153749.png)
+
+**Example:**
+Role _mobile_admin_ applied to folder _/mobile-app_ enables:
+
+- read
+- configure
+- build
+
+Roles map to AD groups.
+
+![](images/screenshot-20260114-112000.png)
+
+* *Role akp can access the Jenkins folder AkpKom and everything inside it — nothing else.*
+
+here is the folder:
+
+![](images/screenshot-20260114-112657.png)
+
+Assign the role to a group/user
+Go back to Manage and Assign Roles
+Click Assign Roles
+Go to Project roles tab/section
+In “User/group to add”:
+type your group name (e.g. akp-group) or a username
+click Add
+In the table, find that user/group row and tick akp
+Click Save
+
+
 # Restart Behavior
 
 The YAML config loads only when Jenkins restarts, while GUI changes apply immediately.
@@ -531,11 +652,70 @@ Example:
 Updating a plugin → restart needed.
 Adding a folder via GUI → instant.
 
+# Integration with OpenShift
+
+## Jenkins <-> Openshift connection
+
+- Jenkins runs the controller (master)
+- OpenShift runs build agents as containers
+- Pipelines spin up contaners dynamically to run jobs
+
+**Example:** Developer triggers a pipeline → Jenkins assigns agent → OpenShift launches container → job runs inside that container.
+
+    👨‍💻 Developer clicks “run pipeline”
+
+    “Hey Jenkins, please build my app.”
+
+    🧑‍💼 Jenkins (the boss) looks at the job
+
+    “I need a worker to do this.”
+
+    🏭 Jenkins asks OpenShift
+
+    “Create me a worker with these tools.”
+
+    📦 OpenShift creates a pod with containers
+
+    This pod is the agent.
+
+    It has Java / Maven / Node / whatever is needed.
+
+    ⚙️ Job runs inside that container
+
+    Build
+
+    Tests
+
+    Packaging
+
+    🗑️ Job finishes → container disappears
+
+    No wasted resources.
+
+    Clean every time.
+
+
+OpenShift manages:
+
+- scheduling containers
+
+- scaling them:
+
+  Scaling = changing the number of running containers. From one image you can run as many containers as you want
+
+- isolating processes
+
+Limitations:
+
+- cannot "live migrate" a running container to another host
+
+This affects design of apps and agents.
+
 # Migration: Docker → OpenShift
 
 Originally Jenkins agents were using Docker directly, but they moved workloads to OpenShift.
 
-## 🟦 Before the migration (classic setup)
+## Before the migration (classic setup)
 
 ```nginx
 Jenkins
@@ -553,7 +733,7 @@ Problems:
 - poor isolation
 - hard ops
 
-🟩 After the migration (modern setup)
+## After the migration (modern setup)
 
 ```scss
 Jenkins
@@ -585,6 +765,7 @@ So:
 
 -> **OpenShift** manages Kubernetes for companies.
 
+## Docker in Docker
 Reason:
 Some tests used Docker API directly, which didn’t work well inside OpenShift.
 
@@ -594,6 +775,21 @@ Example:
 Test containers that require Docker API → must run on special agent.
 
 # OpenShift OC command-line tool (OpenShift CLI)
+
+## commands
+
+```bash
+oc login ...token.. #token is taken from here: https://console-openshift-console.apps.ocp01-shared.m.dc1.cz.ipa.ifortuna.cz
+oc logout
+oc get projects
+oc project jenkins-shared
+oc get pods # to see table with pods
+oc whoami
+oc status
+oc get is gradle8-java21 -n shared-images 
+oc describe is gradle8-java21
+```
+
 
 Roman was connected to OpenShift using the oc command-line tool (OpenShift CLI).
 
@@ -709,6 +905,74 @@ jenkins-agent-def456                  2/2     Running   1          3h
 
 Jenkins agents: - appear when pipeline starts - disappear when pipeline ends
 
+# Containers & Docker — Fundamental Concepts
+
+Docker and container basics:
+
+- Image = template
+
+- Container = running instance of image
+
+- Containers share host OS kernel
+
+- Containers are much faster than virtual machines
+
+IT terms simplified:
+
+- **Image** = recipe (ingredients + instructions)
+
+- **Container** = cake made from recipe
+
+- **VM** = separate kitchen
+
+- **Container** = a dish served in same kitchen but isolated
+
+Example:
+Android build agent runs inside container → isolated but lightweight.
+
+Image:
+
+- static
+
+- stored in registry (Quay, Docker Hub, Nexus)
+
+- versioned (app:1.2.3)
+
+- shared across systems
+
+- no CPU, no memory
+
+* doesnt run itself. its used to create containers. Thats why its called template/recipe
+
+Container:
+
+- runtime instance of an image
+
+- has CPU, memory, PID
+
+- can crash, restart
+
+- has writable layer
+
+**Why DevOps people prefer the word “template”**
+
+Because in CI/CD and OpenShift:
+
+- Jenkins creates containers on demand
+
+- OpenShift schedules containers from images
+
+- multiple pipelines use the same image
+
+- containers come and go, images stay
+
+So we say:
+
+“Spin up an agent from an image”
+
+**A container image** is a packaged application environment that acts as a template for creating running containers.
+
+
 # Master vs Agents
 
 - Master (controller) = GUI & coordination
@@ -727,7 +991,7 @@ Exceptions:
 
 - legacy Linux
 
-# Agent Counts & Automation
+## Agent Counts & Automation
 
 There are ~35–36 agents. Agent creation is automated:
 
@@ -738,18 +1002,33 @@ Updating certificate in agents → Jenkins rebuilds only those agents, not every
 
 # Registry & Artifacts
 
-Built apps are:
+Built application flow:
 
-1. built via pipeline
+* Applications are built via Jenkins pipelines.
+* Built images are pushed to Quay, a container registry similar to Docker Hub.
 
-2. pushed into Quay registry
+**IT term: Registry** = storage system for container images.
 
-- Registry = a storage system for built images
+Where images are stored:
+* Quay registry (external)
+* OpenShift internal registry (cached copy)
 
-- Quay = a container registry similar to Docker Hub
+How image flow works:
+* Images are stored in Quay (source registry).
+* OpenShift creates ImageStreams, which act as references and local cache.
+* Jenkins agents pull images from the OpenShift internal registry, not directly from Quay.
 
-Example:
-Android app → built → pushed to Quay → deployed.
+**IT term:
+ImageStream** = OpenShift abstraction that tracks image versions and enables local caching.
+
+**Why this is important**
+
+When many pipelines deploy at the same time:
+* pulling directly from Quay would overload the registry
+* OpenShift cache provides faster and safer image delivery
+
+**Example:**
+Instead of 30 pipelines downloading the same image from Quay, they all use OpenShift’s cached copy.
 
 # Continuous Testing & Deployment
 
@@ -775,6 +1054,11 @@ After pipeline succeeds → update Jira ticket with version number.
 
 # Multiple URLs (8080 vs HTTPS)
 
+## commands
+ ```bash
+lsof -i :8080
+```
+
 Jenkins originally used:
 
 - http:...:8080 (non-secure)
@@ -788,25 +1072,68 @@ Jenkins originally used:
 
 Old URL still works and is bookmarked but not secure.
 
-# Folders & Access Control
+## lsof: list open files
 
-Folders represent teams or shared projects.
+Jenkins listens to port 8080 by default:
 
-- access is controlled via Bitbucket groups
+```bash
+lsof -i :8080
+```
 
-- admins can see everything
+Output example:
 
-- regular teams see only assigned folders
+```nginx
+java  12345 jenkins  123u  IPv6  TCP *:8080 (LISTEN)
+```
 
-Example:
+Meaning:
 
-- Team A sees Folder A
+- process: java
+- PID: 12345
+- user: jenkins
+- port: 8080
 
-- Team B sees Folder B
+👉 This tells you what is blocking the port
 
-Admins: full access.
+## ss -tpan: socket statistics; tcp connections only; process information; all sockets; numeric output (shows ports as numbers)
+
+`ss -tpan` shows which processes are using which network ports right now.
+
+Think of it as:
+
+- modern replacement for netstat
+- faster alternative to lsof -i
+
+**Socket** = is one end of a communication channel.
+
+Think:
+
+- phone socket = where you plug the phone
+- network socket = where programs talk to the network
+
+A program uses a socket to:
+
+- send data
+- receive data
+
+## ss - tulnp: Shows all listening network ports and which programs are using them.
+
+```bash
+ss -tulnp
+```
+
+- ss → show network sockets
+- -t → TCP (web, Jenkins, SSH)
+- -u → UDP (DNS, streaming, etc.)
+- -l → listening only (servers waiting for connections)
+- -n → show numbers (8080, not names)
+- -p → show process name + PID
+
+![](images/screenshot-20260108-153126.png)
 
 # Credentials & Vault
+
+System -> Vault
 
 Credentials are stored:
 
@@ -817,6 +1144,33 @@ Credentials are stored:
 - in Vault for other secrets
 
 - Vault = secure storage for passwords, tokens, keys.
+
+Example:
+Pipeline uses Bitbucket token
+→ instead of writing password in script, it references variable injected at runtime.
+
+## Using Vault in Pipelines
+
+Vault secrets stored as:
+
+- Docker config files
+- Kubernetes configs
+- environment variables
+
+Pipeline syntax example:
+
+```javascript
+withVault(...) {
+env.MYSECRET = vaultSecret
+}
+```
+
+This prevents:
+
+- hardcoded passwords
+- sharing full cluster access
+
+Namespaces limit access scope.
 
 # Queue, Running Jobs & Troubleshooting
 
@@ -896,8 +1250,6 @@ Credentials are stored:
 - OpenShift migration → fewer stuck jobs.
 - In case of old systems → jobs could hang → required manual container kill.
 
-Here we can see warning that some plugins are depreciated, so its good to remove them with next restart. Talk to developpers if they are used:
-![](images/screenshot-20260110-193644.png)
 
 # Console Output & Logs
 
@@ -938,22 +1290,6 @@ example of branches and pull requests:
 ![](images/screenshot-20260108-160329.png)
 
 - Default version = rarely used
-
-# Organizationally
-
-- Admins create folders & set access.
-
-- Teams configure their own pipelines.
-
-- Some unclear folder naming conventions.
-
-- Jira integration exists but not centrally managed.
-
-# OpenShift
-
-**OpenShift** - a container orchestration platform built on Kubernetes
-
-Since migration jobs rarely fail. Isses appear during updates only
 
 # Manage Jenkins — The Admin Console
 
@@ -1119,10 +1455,6 @@ we also use testing sonar (for david to test updates)
 
 important
 
-# System -> Vault
-
-important
-
 # System -> Jira
 
 important
@@ -1133,48 +1465,10 @@ pipelines use variables, which take data from Manage Jenkins -> system. its hand
 
 # System -> Libraries
 
-# Logging Tools
+here is the address to shared libraries repo in bitbucket:
+![](images/screenshot-20260119-121952.png)
 
-There is internal logging in Jenkins, but:
-
-- often not user-friendly
-
-- rarely used
-
-- sometimes insufficient
-
-If needed, admins can increase **verbosity**.
-
-**IT term: verbosity** = how detailed logging output is
-
-# Email / Notifications / Webhooks
-
-Jenkins historically supported:
-
-- email notifications
-
-- Teams integrations (webhooks)
-
-**IT term: webhook** = a real-time message from an app to another app, e.g., pipeline → Teams channel.
-
-But Teams integration was complicated and changed over time.
-Some teams replaced it with scripts.
-
-# Credential Management & Vault
-
-Credentials are stored via:
-
-- Jenkins credential store
-
-- Vault for secure secrets
-
-**IT term: Vault** = secure password/token manager.
-
-Example:
-Pipeline uses Bitbucket token
-→ instead of writing password in script, it references variable injected at runtime.
-
-# Manage Jenkins -> System -> Pipeline Shared Libraries
+## Manage Jenkins -> System -> Pipeline Shared Libraries
 
 Jenkins has limitations:
 
@@ -1312,6 +1606,35 @@ Some teams have their own pipelines, for ex. Middleware:
 
 ![](images/screenshot-20260110-203141.png)
 
+# Logging Tools
+
+There is internal logging in Jenkins, but:
+
+- often not user-friendly
+
+- rarely used
+
+- sometimes insufficient
+
+If needed, admins can increase **verbosity**.
+
+**IT term: verbosity** = how detailed logging output is
+
+# Email / Notifications / Webhooks
+
+Jenkins historically supported:
+
+- email notifications
+
+- Teams integrations (webhooks)
+
+**IT term: webhook** = a real-time message from an app to another app, e.g., pipeline → Teams channel.
+
+But Teams integration was complicated and changed over time.
+Some teams replaced it with scripts.
+
+
+
 # System -> Git
 
 he thinks developers do it differently
@@ -1326,13 +1649,26 @@ he thinks its not used. THey used their own commands
 
 very important.
 
+Tools mentioned:
+
+- Vault (secrets)
+
+- Helm (deployment charts)
+
+- OC command (OpenShift CLI)
+
+- Kubernetes plugin (to connect Jenkins to OpenShift)
+
+Example:
+Helm manages versioned deployment of app into OpenShift cluster.
+
 # Manage Jenkins -> Plugins
 
       The instructor explains that Jenkins is regularly backed up by copying its data to separate folders, and these backups can be downloaded and used locally to safely experiment, test changes, or even intentionally break Jenkins without risking production. For local testing, Jenkins YAML configuration must be adjusted so it does not connect to real OpenShift or external systems. The key message is that updates and risky changes should always be tested on a local or test setup first, never directly on the production Jenkins.
 
 ![](images/screenshot-20260110-203828.png)
 
-# Update Procedures
+## Update Procedures
 
 Admins describe:
 
@@ -1356,6 +1692,10 @@ Procedure:
 Never update during major release periods.
 
 # Updates and YUM
+
+```bash
+cat /etc/yum.repos.d/jenkins.repo #shows where Jenkins packages are downloaded from, which is crucial for understanding installs, updates, and stability.
+```
 
 yum = Linux package manager
 
@@ -1390,8 +1730,7 @@ And yum:
 1. reads **repository files** from:
 
 ```bash
-/etc/yum.repos.d/
-```
+/etc/yum.repos.d/cat /etc/yum.repos.d/jenkins.repo
 
 2. each .repo file tells yum:
 
@@ -1456,9 +1795,17 @@ here is all config for Openshift:
 
 done via kubernetes plugin
 
-Those are agents:
+Those are pod templates:
 
 ![](images/screenshot-20260110-221639.png)
+
+* Pod Template defines:
+            
+            which containers exist in the pod
+            which images each container uses
+            resources (CPU / memory)
+            volumes
+            environment variables
 
 we create those, we have repo for them
 
@@ -1467,90 +1814,6 @@ every agent has its own folder
 example:
 ![](images/screenshot-20260110-221812.png)
 
-# Containers & Docker — Fundamental Concepts
-
-Docker and container basics:
-
-- Image = template
-
-- Container = running instance of image
-
-- Containers share host OS kernel
-
-- Containers are much faster than virtual machines
-
-IT terms simplified:
-
-- **Image** = recipe (ingredients + instructions)
-
-- **Container** = cake made from recipe
-
-- **VM** = separate kitchen
-
-- **Container** = a dish served in same kitchen but isolated
-
-Example:
-Android build agent runs inside container → isolated but lightweight.
-
-Image:
-
-- static
-
-- stored in registry (Quay, Docker Hub, Nexus)
-
-- versioned (app:1.2.3)
-
-- shared across systems
-
-- no CPU, no memory
-
-* doesnt run itself. its used to create containers. Thats why its called template/recipe
-
-Container:
-
-- runtime instance of an image
-
-- has CPU, memory, PID
-
-- can crash, restart
-
-- has writable layer
-
-**Why DevOps people prefer the word “template”**
-
-Because in CI/CD and OpenShift:
-
-- Jenkins creates containers on demand
-
-- OpenShift schedules containers from images
-
-- multiple pipelines use the same image
-
-- containers come and go, images stay
-
-So we say:
-
-“Spin up an agent from an image”
-
-**A container image** is a packaged application environment that acts as a template for creating running containers.
-
-# Integration with OpenShift
-
-OpenShift manages:
-
-- scheduling containers
-
-- scaling them:
-
-  Scaling = changing the number of running containers. From one image you can run as many containers as you want
-
-- isolating processes
-
-Limitations:
-
-- cannot "live migrate" a running container to another host
-
-This affects design of apps and agents.
 
 # Dockerfiles & Agent Build
 
@@ -1566,6 +1829,53 @@ Here is the link with
 https://ci.svc.ifortuna.cz/job/Openshift/job/ocp4_jenkins_docker_slaves/job/master/
 
 ![](images/screenshot-20260107-200341.png)
+
+### Why do you see so many “Build and push …” columns?
+* Those are stages inside the Jenkinsfile.
+* Usually the Jenkinsfile does one of these:
+    * builds each image as a separate stage (so you see many columns)
+    * or uses a matrix/parallel stage generation based on folder names
+
+**So your “Build and push slave-maven-java17” stage is basically:**
+
+1. docker build (or buildah bud)
+2. docker push to Quay / OpenShift registry
+
+### So what are Dockerfiles then?
+Dockerfiles are a different layer:
+
+* Jenkinsfile = the recipe of the pipeline (stages like “Checkout”, “Build & push …”)
+
+* Dockerfile(s) = the recipe of each agent image (java, maven, gradle…)
+
+Typical structure in your “OCP4_Jenkins_Docker_Slaves” repo is something like:
+
+```python-repl
+Jenkinsfile
+slave-base-java17/Dockerfile
+slave-maven-java17/Dockerfile
+slave-gradle8-java21/Dockerfile
+...
+```
+Jenkinsfile loops through folders and runs podman/buildah/docker build for each Dockerfile, then pushes images to Quay/internal registry.
+
+### What is buildah:
+
+**Buildah** is a tool for building container images without running Docker.
+
+Originally people used:
+`docker build`  -> Problem ❌
+
+Docker needs:
+* a daemon (background service)
+* high privileges
+* root access
+
+This is bad for OpenShift and Jenkins security.
+So Red Hat created:
+👉 buildah
+
+![](images/screenshot-20260119-161738.png)
 
 _Jenkins can ask OpenShift for an agent only if OpenShift already has an image to start that agent from._
 
@@ -1742,6 +2052,7 @@ Built **FROM Slave Base**
 Adds:
 
 - Java runtime (e.g. Java 17)
+    Java Runtime is the software that understands Java programs and executes them on your machine.
 
 - JAVA_HOME
 
@@ -1950,143 +2261,6 @@ Android Agent rebuilt
 
 Nothing else.
 
-# Fortuna Jenkins
-
-![](images/screenshot-20260108-151231.png)
-
-```sql
-    root@jenkins01-ocp01-shared.m.dc1.ipa.ifortuna.cz
-    │    │
-    │    └── hostname (server name)
-    └─────── user (root = administrator)
-```
-
-## lsof: list open files
-
-Jenkins listens to port 8080 by default:
-
-```bash
-lsof -i :8080
-```
-
-Output example:
-
-```nginx
-java  12345 jenkins  123u  IPv6  TCP *:8080 (LISTEN)
-```
-
-Meaning:
-
-- process: java
-- PID: 12345
-- user: jenkins
-- port: 8080
-
-👉 This tells you what is blocking the port
-
-## ss -tpan: socket statistics; tcp connections only; process information; all sockets; numeric output (shows ports as numbers)
-
-`ss -tpan` shows which processes are using which network ports right now.
-
-Think of it as:
-
-- modern replacement for netstat
-- faster alternative to lsof -i
-
-**Socket** = is one end of a communication channel.
-
-Think:
-
-- phone socket = where you plug the phone
-- network socket = where programs talk to the network
-
-A program uses a socket to:
-
-- send data
-- receive data
-
-## ss - tulnp: Shows all listening network ports and which programs are using them.
-
-```bash
-ss -tulnp
-```
-
-- ss → show network sockets
-- -t → TCP (web, Jenkins, SSH)
-- -u → UDP (DNS, streaming, etc.)
-- -l → listening only (servers waiting for connections)
-- -n → show numbers (8080, not names)
-- -p → show process name + PID
-
-![](images/screenshot-20260108-153126.png)
-
-# Registries & Artifacts
-
-Images are stored in:
-
-- Quay registry (external)
-
-- OpenShift internal registry
-
-IT term: registry = storage for container images.
-
-Because large teams deploy simultaneously, internal caching in OpenShift is safer and faster.
-
-# Tools used
-
-Tools mentioned:
-
-- Vault (secrets)
-
-- Helm (deployment charts)
-
-- OC command (OpenShift CLI)
-
-- Kubernetes plugin (to connect Jenkins to OpenShift)
-
-Example:
-Helm manages versioned deployment of app into OpenShift cluster.
-
-# Jenkins <-> Openshift connection
-
-- Jenkins runs the controller (master)
-- OpenShift runs build agents as containers
-- Pipelines spin up contaners dynamically to run jobs
-
-**Example:** Developer triggers a pipeline → Jenkins assigns agent → OpenShift launches container → job runs inside that container.
-
-    👨‍💻 Developer clicks “run pipeline”
-
-    “Hey Jenkins, please build my app.”
-
-    🧑‍💼 Jenkins (the boss) looks at the job
-
-    “I need a worker to do this.”
-
-    🏭 Jenkins asks OpenShift
-
-    “Create me a worker with these tools.”
-
-    📦 OpenShift creates a container
-
-    This container is the agent.
-
-    It has Java / Maven / Node / whatever is needed.
-
-    ⚙️ Job runs inside that container
-
-    Build
-
-    Tests
-
-    Packaging
-
-    🗑️ Job finishes → container disappears
-
-    No wasted resources.
-
-    Clean every time.
-
 # Special "Priveleged" Agent Image
 
 **Privileged** means the container runs with elevated system permissions, allowing it to do powerful system-level tasks that normal containers are not allowed to do.
@@ -2126,7 +2300,7 @@ Why?
 - is intentially tiny
 - contains only Java 17 + bare minimum
 
-# Why to break this rule of big images and have tiny special image?
+## Why to break this rule of big images and have tiny special image?
 
 - this agent is downloaded every pipeline run
 - startup speed matters more than convenience
@@ -2136,20 +2310,69 @@ Smaller images = faster pipeline start & reduced load.
 
 Continue from: 3) ImageRegistry, Quay (aka “Cay”), and ImageStreams
 
-# ImageRegistry, Quay (aka “Cay”), and ImageStreams
 
-Image flow works like this:
+Some builds cannot run in normal containers.
 
-1. Images are stored in Quay (external registry).
+🔴 Docker / Podman builds
 
-2. OpenShift creates ImageStreams, which act like links+cache.
+If pipeline does this:
+```bash
+docker build .
+podman build .
+buildah build .
+```
+Then container must:
+* access container runtime
+* mount overlay filesystem
+* use kernel features
 
-3. Jenkins agents pull images from OpenShift registry, not directly from Quay.
+👉 requires privileged mode
 
-**IT term: ImageStream** = OpenShift abstraction pointing to container images, enabling caching and versioning.
+Without it you get errors like:
+* permission denied
+* cannot mount
+* overlayfs not permitted
 
-Example:
-Instead of 30 pipelines downloading from Quay simultaneously → they download from OpenShift’s cached copy. This prevents overload on Quay during peak deployments.
+🔴 Android builds
+Images like:
+* slave-android-java11
+* slave-android-java21
+
+Often need:
+* emulators
+* hardware acceleration
+* special devices
+
+→ frequently require privileged containers.
+
+🔴 Native images (very important)
+
+👉 often privileged required
+
+### What privileged actually means technically
+When OpenShift runs the pod:
+```yaml
+securityContext:
+  privileged: true
+  ```
+That means:
+
+* container can access host devices
+* can mount filesystems
+* can run nested containers
+* runs with elevated permissions
+
+In OpenShift this is very restricted.
+
+Only special namespaces and service accounts can do it.
+
+Why this is dangerous:
+
+Because privileged containers can:
+* escape container isolation
+* read node filesystem
+* affect other workloads
+
 
 # Environment Variables & Host Resolution
 
@@ -2224,6 +2447,8 @@ So it contains deployment tools instead of programming tools.
    - Think:
 
 2. 2️⃣ Helm
+
+![](images/screenshot-20260114-110956.png)
 
    - Helm is a packaging and templating tool
    - It bundles:
@@ -2334,25 +2559,8 @@ Jenkins pipeline starts
 - The build runs on that Windows machine
 - Jenkins collects the output\*
 
-# Jenkins Configuration as Code (JCasC)
-
-Configuration is stored in jenkins.yaml.
-
-Key points:
-
-- GUI changes must be replicated in YAML
-- YAML ensures persistence across restarts
-- Export tool does NOT generate perfect config — manual adjustments needed
-
-  - The export tool:
-    - looks at your already-configured Jenkins
-    - tries to convert the current UI configuration into YAML
-    * the exported YAML is: a starting point, not production-ready
-
-**IT term: JCasC** = plugin enabling YAML-based Jenkins configuration.
-
-Example:
-Add new AD group in GUI → also update YAML → apply configuration.
+### for mac practice check here: 
+[practice_add_new_mac.md](practice_add_new_mac.md)
 
 # Update & Error Handling
 
@@ -2391,38 +2599,42 @@ Important detail:
 
 - Shared pipelines sometimes hardcode passwords → bad practice → painful during password changes.
 
-# Active Directory Authentication
+for ex. here in shared pipeline:
 
-Jenkins uses AD for login:
+![](images/screenshot-20260114-200951.png)
 
-- AD groups govern roles
-- Some login slowness exists
-- Still unresolved, but optimized where possible
+but they should use the credential:
 
-_IT term: AD = centralized user management system._
+![](images/screenshot-20260114-201033.png)
 
-Example:
-Member of AD_DEV_TEAM → gets access to folder Dev.
+it depends on developers though. we dont change shared pipelines, it is done by developers.
 
-# Roles & Permissions
+you need to choose domain - global 
+![](images/screenshot-20260114-201151.png)
+we use username with password
 
-Two building blocks:
+after that dont forget to update yaml file
 
-- Roles = WHAT you can do (read/configure/build)
-- Folder assignment = WHERE you can do it
 
-![](images/screenshot-20260108-153749.png)
 
-**Example:**
-Role _mobile_admin_ applied to folder _/mobile-app_ enables:
 
-- read
-- configure
-- build
 
-Roles map to AD groups.
+# Manage Jenkins -> security
 
-# Script Approval
+here its set up for users to login:
+
+![](images/screenshot-20260114-200440.png)
+
+here we have optimizations to avoid long logins. sometimes issues come again. 
+
+there is a way to decode credentials, but its tied to installation of jenkins.
+
+i cant decode credentials from production server on test server. 
+its possible if you copy master key -> everything is hashed with this master key. on test we have different master key
+
+![](images/screenshot-20260114-201559.png)
+
+# Manage Jenkins -> Script Approval
 
 Jenkins sometimes blocks scripts for security reasons.
 
@@ -2443,6 +2655,10 @@ Admin can:
 - or reject it
 
 This happens rarely, but requires trust — because approval could open vulnerabilities.
+
+you need to approve here. but its hard cause its just we trust developer.
+
+![](images/screenshot-20260114-202416.png)
 
 ## What happens when a script is blocked?
 
@@ -2624,6 +2840,10 @@ After pushing to Quay:
 _IT term: ImageStream_ = OpenShift mechanism linking container images.
 
 This lets Jenkins agents pull from OpenShift cache instead of external registry.
+
+here is the address from pod template:
+
+
 
 ## Building the Agent
 
@@ -3171,7 +3391,7 @@ Example:
 - iOS builds → Mac
 - .NET builds → Windows
 
-# Testing & Upgrade Environment
+# Testing & Upgrade Environment (Jenkins 4 part 1)
 
 There is a dedicated test Jenkins instance:
 
@@ -3242,6 +3462,10 @@ Meaning:
 _IT term: deprecation = feature is being phased out and should not be used anymore._
 
 ## Downgrading Plugins
+Here we can see warning that some plugins are depreciated, so its good to remove them with next restart. Talk to developpers if they are used:
+![](images/screenshot-20260110-193644.png)
+
+
 
 To keep Jenkins working:
 
@@ -3379,7 +3603,7 @@ Because:
 This is a classic DevOps challenge:
 → dealing with upstream changes outside of your control.
 
-# Adding new MacOS Jenknis agent
+# Adding new MacOS Jenknis agent (Jenkins 4 part 2)
 
 ## Why a MacOS Agent?
 
@@ -3535,17 +3759,6 @@ Key takeaways:
 
 ## Bitbucket
 
-## Vault
-
-- stores secure credentials
-- used for Kubernetes/OpenShift authentication
-- secrets can be injected into pipelines
-
-_IT term: secret = password/token/credential used by automation._
-
-Example:
-Pipeline asks Vault → receives token → logs into OpenShift.
-
 ## Nexus
 
 - stores build artifacts
@@ -3627,28 +3840,7 @@ A computer can run:
 
 Ports keep conversations _separate._
 
-## Using Vault in Pipelines
 
-Vault secrets stored as:
-
-- Docker config files
-- Kubernetes configs
-- environment variables
-
-Pipeline syntax example:
-
-```javascript
-withVault(...) {
-env.MYSECRET = vaultSecret
-}
-```
-
-This prevents:
-
-- hardcoded passwords
-- sharing full cluster access
-
-Namespaces limit access scope.
 
 ## Using Nexus Internally vs External URLs
 
