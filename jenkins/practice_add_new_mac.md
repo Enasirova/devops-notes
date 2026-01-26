@@ -12,7 +12,7 @@ number of executors: how many pipelines can run the same time (we can always add
 we need to add certificate (he added private one ). add credenetials -> ssh username with private key. private ssh key provided by requestor. 
 
 we create environmental variables (copy paste from other mac):
-![](Practicing/images/screenshot-20260116-133550.png)
+![](images/screenshot-20260116-133550.png)
 
 
 then we can see the node -> check log:
@@ -54,4 +54,3 @@ we create a backup of jenkins yaml
 then we edit the yaml file. -> check back up file for that day to see what exactly was changed:
 ![](images/screenshot-20260116-134853.png)
 
-![](images/screenshot-20260120-092053.png)

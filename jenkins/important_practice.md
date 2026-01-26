@@ -424,41 +424,6 @@ ss -tulnp
 
 
 
-# adding a new groupe/role to Jenkins UI:
-
-Roles map to AD groups.
-
-![](images/screenshot-20260114-112000.png)
-
-* *Role akp can access the Jenkins folder AkpKom and everything inside it — nothing else.*
-
-here is the folder:
-
-![](images/screenshot-20260114-112657.png)
-
-how to do it in UI:
-
-In the Project roles section:
-In “Role to add”: type akp
-In “Pattern”: paste:
-^AkpKom|^AkpKom/.*
-Click Add:
-
-![](images/screenshot-20260114-114508.png)
-
-then check boxes on on the right side for that role:
-
-![](images/screenshot-20260114-114653.png)
-
-then go back to assign roles and add the group and check reader
-
-![](images/screenshot-20260114-122937.png)
-
-
-then update yaml (not exactly, adjust for actual yaml in fortuna):
-
-![](images/screenshot-20260114-113922.png)
-
 # Real Task: updating and building a new Jenkins agent
 
 Agent uses:
