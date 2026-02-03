@@ -152,3 +152,18 @@ they can: delete or insert lines; replace lines or part of lines
 
 
 ![](images/screenshot-20260202-211244.png)
+
+# task: find data in the log file
+
+i ran wget command to have the log file in my vm
+
+then this chaining of commands answered the task.
+
+command:
+![](images/screenshot-20260203-134600.png)
+
+questions which were answered:
+
+![](images/screenshot-20260203-134619.png)
+
+
