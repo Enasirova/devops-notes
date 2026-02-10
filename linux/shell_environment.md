@@ -505,3 +505,78 @@ BASH_ENV=/full/path/to/myenv.sh
 * Bash loooks for and environment variable BASH_ENV
 * If found, will try to execute this file (without looking in PATH)
 
+startup files have bash codes to be executed, when we start 
+
+i went to home directory and checked .bashrc startup file (interactive non login shell)
+
+![](images/screenshot-20260210-132800.png)
+
+i added this at the end:
+
+![](images/screenshot-20260210-133130.png)
+
+it will be only executed, when new shell will be started. so i have to start a new shell: bash (new bash in my outer bash):
+
+![](images/screenshot-20260210-133424.png)
+
+PS: new bash means start another instance of the bash program. 
+
+## why would you do bash in bash:
+
+1) to apply configuration changes of startup file (what we did above). so you get a shell with new config loaded
+
+2) to test something safely: sandboxing
+
+You want to test:
+* PATH changes
+* environment variables
+* aliases
+* shell options (set -e, shopt, etc.)
+
+You do:
+
+`bash`
+
+Test inside. If you mess it up:
+`exit`
+
+3) different behaviour without logging out
+
+you can start Bash with options:
+
+```bash
+bash --noprofile --norc
+```
+
+so now I have:
+* no user config
+* clean environment
+
+Its usefull for debugging
+
+# our new command hello - world
+
+![](images/screenshot-20260210-134734.png)
+
+we in the past created this command and the idea was that the command should be executable from anywhere (we modified the path). but if we start a new shell it might not work. then i would need to edit the variable path inisde .bashrc file manually:
+
+![](images/screenshot-20260210-142855.png)
+
+
+here i can see my path and the where my executable hello_world is located:
+
+```bash
+naseka@localhost:~$ echo "${PATH}"
+/home/naseka/.local/bin:/home/naseka/bin:/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin
+naseka@localhost:~$ which hello_world
+~/bin/hello_world
+```
+
+here i start a shell with no inherited environment at all:
+
+```bash
+naseka@localhost:~$ env -i bash --noprofile --norc
+bash-5.2$ echo "$PATH"
+/usr/local/bin:/usr/bin
+```
+
