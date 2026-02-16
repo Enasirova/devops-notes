@@ -51,8 +51,7 @@ here we can see how bold is:
 ![](images/screenshot-20260211-103715.png)
 
 so we use it in the command:
-
-![](images/screenshot-20260211-103658.png)
+![](images/screenshot-20260213-150005.png)
 
 to reset:
 
