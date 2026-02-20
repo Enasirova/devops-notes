@@ -21,7 +21,6 @@ etc
 model name: here we will see official docs
 
 # proc/meminfo
-continue from 5:59
 
 `cat /proc/meminfo`
 

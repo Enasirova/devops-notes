@@ -41,6 +41,23 @@ there are many users, but we cannot login with them.
 
 for ex sshd: we can see that it has no login shell, so we cannot login. or we hae systemd-timesync - here we also cannot login. its about time synch and when we need to change time
 
+## meaninf of each field
+```bash
+jannis:x:1001:1001:Jannis User:/home/jannis:/bin/bash
+```
+
+* x = encrypted password (stored in etc/shadow)
+* 1001 = uuid
+* 1001 = ugid 
+        Typical values:
+        0 → root
+        1–999 → system users/services
+        1000+ → normal users
+* Jannis User = comment /user info. often contains full name
+* /home/jannis = home directory of hte user. where his personal files live
+* /bin/bash = login shell = the program started after login
+    if /usr/sbin/nologin -> means account cannot login. often for system users
+
 2) `etc/shadow`
 
 this file has encrypted user passwords and password aging info
@@ -104,6 +121,16 @@ exclamation sign means there is no password and if i try to enter system with an
 
 we can see that home folder lauren was created
 
+# passwd command
+
+```bash
+passwd -S jannis #shows password status
+passwd -e jannis #marks password as expired immediately. user must change it on next login
+passwd -l jannis #disables login (adds ! to hash in /etc/shadow)
+passwd -u jannis #unlock account
+
+
+
 how to access lauren?
 
 we need to use `passwd [options] [username] -S -d -n -x 
@@ -119,29 +146,29 @@ we need to use `passwd [options] [username] -S -d -n -x
 ```bash
 naseka P never 0 99999 7 -1
 ```
-naseka → username
+            naseka → username
 
-P → password status
-    P = password set and usable
-    L = locked
-    NP = no password
-        So your account password is active.
+            P → password status
+                P = password set and usable
+                L = locked
+                NP = no password
+                    So your account password is active.
 
-never → last password change date
-    Means the password has never been changed since creation
-    (or system doesn’t track it)
+            never → last password change date
+                Means the password has never been changed since creation
+                (or system doesn’t track it)
 
-0 → minimum days before password can be changed again
-    0 = can change anytime
+            0 → minimum days before password can be changed again
+                0 = can change anytime
 
-99999 → maximum days password is valid
-    Huge number = effectively never expires
+            99999 → maximum days password is valid
+                Huge number = effectively never expires
 
-7 → warning days before expiry
-If password ever expires, user gets warning 7 days before
+            7 → warning days before expiry
+            If password ever expires, user gets warning 7 days before
 
--1 → inactivity period after expiry before account is disabled
-    -1 = never disabled automatically
+            -1 → inactivity period after expiry before account is disabled
+                -1 = never disabled automatically
 
 
 
