@@ -1,6 +1,8 @@
 permissions
 r access directrory contents
+
 w add or remove files
+
 x enter and traverse directory
 
 ![](images/screenshot-20260219-095634.png)

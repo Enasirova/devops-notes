@@ -1,4 +1,4 @@
-`su` swiwtch user
+`su` switch user
 
 then we can login as a different user. we need a pwd
 

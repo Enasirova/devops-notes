@@ -15,14 +15,11 @@ there we have folder for temporary data, but we dont want other users to delete 
 # how to set it
 
 `chmod +t [folder]`
+
 `/$ chmod +t /data` -> if anothe user tries to rename or remove he cannot do it
 
 but if directory owner is there he can still delete it.
 
-
-? or in octal notation: 
-set sickty bitL
-unset sticky bit:
 
 # hot to inspect
 lower case is t if its executable or T if its not executable
