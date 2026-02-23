@@ -70,3 +70,15 @@ then we ran the command: run a cpu performance test using 10 parallel workser th
 
 ![](images/screenshot-20260220-162145.png)
 
+he has a text file which is a shell script: bench.sh
+
+inside the file he has:
+
+```bash
+#!/user/bin/env bash
+
+nice -n 19 sysbench cpu --threads=10 run & sysbench cpu --threads=10 run 
+
+```
+then he exectued that file -> both those sysbench commands run at the same time and he has 2 cores. we can grep 'events per second' and we can see that one of the processes takes everything. cpu is occupied and os neeeds to decide what to do. niceness never improves the functionality, its just a priority of cpu.
+
