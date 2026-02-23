@@ -15,7 +15,7 @@ i started wget download in my terminal:
 
 ![](images/screenshot-20260222-172541.png)
 
-i opened another terminal, found wget process id and sent kill signal:
+i opened another terminal, found wget process id and sent kill signal:v
 
 ![](images/screenshot-20260222-172701.png)
 
