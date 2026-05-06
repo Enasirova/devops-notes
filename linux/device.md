@@ -34,6 +34,16 @@ those are devices that dont necessarily refer to a physical device
 depending on the type (c or b), they may show up as a block device or a character device
 example: the partition of a harddrive could be the pseudo device (cause its not directly hardware or just partition)
 
+
+A partition of a hard drive is a logical division of the disk into separate sections. Each section behaves like an independent disk.
+Think of it like dividing one big cupboard into several drawers.
+Example
+If you have a 1 TB hard drive, you can split it into partitions like this:
+Partition	Size	Purpose
+C:	300 GB	Operating system (Windows / Linux / macOS)
+D:	500 GB	Files, photos, documents
+E:	200 GB	Backups or projects
+
 # to list devices
 
 `cd /dev` -> folder with all devices
@@ -55,6 +65,19 @@ pts contains ttay (terminals):
 ![](images/screenshot-20260217-095709.png)
 
 here we inputted hello world to pts/p -> hten we can see it in the terminal. `/dev/pts/o` its a pseudo terminal and then the data will be sent to our actual terminal
+
+TTY = originally teletype writer.
+
+Today TTY = terminal session.
+
+```bash
+
+[255 naseka@ad.ifortuna.cz@jenkins01-ocp01-shared.m.dc1.cz.ipa.ifortuna.cz .ssh]$ tty
+/dev/pts/0
+[0 naseka@ad.ifortuna.cz@jenkins01-ocp01-shared.m.dc1.cz.ipa.ifortuna.cz .ssh]$ echo 'peta' > /dev/pts/0
+peta
+[0 naseka@ad.ifortuna.cz@jenkins01-ocp01-shared.m.dc1.cz.ipa.ifortuna.cz .ssh]$ 
+```
 
 ![](images/screenshot-20260217-095745.png)
 

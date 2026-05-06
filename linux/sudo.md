@@ -9,7 +9,9 @@ sudoers are configured here - we specify users who can use sudo
 
 we can open the file
 
-when i read the file, that i need to use visudo command its writiten
+when i read the file, that i need to use visudo command instead of vim, cause its safer:
+
+![](images/screenshot-20260318-141849.png)
 
 it creates temp file:
 

@@ -1,5 +1,12 @@
 
-if we only have one cpu in our system
+if we only have one cpu core in our system
+
+how to check how many cores you have:
+
+`sysctl -n hw.ncpu`
+
+i have 12 cores = 12 workers
+
 how we can execute multiple programs at the same time?
 
 the idea: we let our cpu switch between those

@@ -21,6 +21,8 @@ here we can see temporary files:
 here we can see numnber of lines:
 ![](images/screenshot-20260213-214315.png)
 
+![](images/screenshot-20260318-111845.png)
+
 we also can create a temporary file as the input to a command
 
 `>(command)`

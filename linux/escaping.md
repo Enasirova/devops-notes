@@ -19,3 +19,5 @@ doesnt work with single quotes..:
 signle quotes disable ALL rewrites/expansions -> so even backlash is disabled, here it means that last single quote and then there is no termination of command ..:
 
 ![](images/screenshot-20260213-165337.png)
+
+![](images/screenshot-20260313-154506.png)

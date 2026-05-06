@@ -11,6 +11,9 @@ chmod in practice:
 
 ![](images/screenshot-20260219-095811.png)
 
+        u = owner of the file
+        not the user running chmod
+
 to change permissions for whole directory structure (all files insdie will have permissions changed) -R
 
 ![](images/screenshot-20260219-100025.png)

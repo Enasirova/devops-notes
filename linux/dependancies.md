@@ -48,6 +48,11 @@ list all dependacies:
 
 `dnf deplist bash`: only goes to one level (not dependacies of depandcies of dependancies)
 
+`dependency: filesystem >= 3`
+
+it means bash requires another package called filesystem with version at least 3. filesystem package  provides standard Linux directory structure.
+
+
 ![](images/screenshot-20260306-161507.png)
 
 

@@ -23,6 +23,8 @@ shell parameter expansion: allows to work with strings:
 quesry the length of the string `#`:
 ![](images/screenshot-20260213-154924.png)
 
+![](images/screenshot-20260318-152314.png)
+
 to cut out the part of the string:
 
 ${HOME:start:length}

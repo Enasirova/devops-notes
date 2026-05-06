@@ -162,6 +162,9 @@ might be necessary to enable this:
 
 ![](images/screenshot-20260201-114923.png)
 
+
+![](images/screenshot-20260313-155943.png)
+
 ## danger: bash doesnt differentate between a file name and parameter
 
         If we then execute rm * in that folder:

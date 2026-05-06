@@ -44,3 +44,10 @@ so some commands are provided by the shell and some are executables and some a b
 
 if a command is provided by the shell, it depends on the shell which output you get
 
+6. How to run the executable version explicitly
+If you want the OS executable, bypass the builtin:
+/usr/bin/kill
+Example:
+
+
+`/usr/bin/kill -l`

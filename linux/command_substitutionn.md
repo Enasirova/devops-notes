@@ -5,5 +5,5 @@ single quotes dont work with substitution
 
 the size of my home directory: `echo 'The size of my home directory is:'"$(du -sh ~")`
 
-backtick `
+`du -sh ~` = disk usage summmary (otherwise will print every subdirectory) human readable (already in biytes)
 

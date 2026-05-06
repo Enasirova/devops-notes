@@ -21,6 +21,10 @@ but we could add the alias to bashrc file then it will be valid for every sesion
 
 ![](images/screenshot-20260210-154343.png)
 
+bashrc file is in the home directory:
+
+![](images/screenshot-20260312-135812.png)
+
 
 ![](images/screenshot-20260210-154422.png)
 
@@ -32,3 +36,11 @@ for ex. if we are tired to put the same parameter over and over, we can create a
 
 ![](images/screenshot-20260210-154752.png)
 
+# bashrc in jenkins vm
+
+![](images/screenshot-20260312-140045.png)
+
+this bashrc is inside naseka homedirectory and is valid for naseka only. for everyone it will be here:
+system wide shell configuration (inside /etc/):
+
+![](images/screenshot-20260312-140444.png)

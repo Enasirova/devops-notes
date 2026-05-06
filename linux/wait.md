@@ -29,6 +29,8 @@ if terminal behaves weird:
 
 ![](images/screenshot-20260224-122023.png)
 
+![](images/screenshot-20260318-153348.png)
+
 # now as soon as all 3 jobs finished -> there will be a sound and pringing Download complete:
 
 ![](images/screenshot-20260224-122146.png)
