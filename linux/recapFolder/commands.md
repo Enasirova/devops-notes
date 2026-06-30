@@ -240,3 +240,168 @@ SSSD = not a user database, it is Linux service that connects the Linux server t
 when you login -> Linux asks SSSD: "Do you know this user?"
 
 sssd checks AD, LDAP or IPA
+
+# umask
+
+= permissions you REMOVE by default, when new files or folders are created.
+
+```bash
+~$ umask
+0022
+~$ 
+```
+
+# PAM = Pluggable Authentication Modules
+
+PAM is the Linux system that decides what should happen when someone logs in or proves who they are
+
+```text
+PAM is the receptionist/security desk.
+Programs like ssh, sudo, and the login screen ask the desk:
+"Is this person allowed in, and what rules should apply once they enter?"
+```
+
+# top and memory
+
+![](images/screenshot-20260630-143020.png)
+
+## explanation of MiB Mem:
+
+```text
+free        = completely unused RAM
+used        = RAM actively used by programs/kernel
+buff/cache  = RAM used for speed, mostly reclaimable
+available   = best quick indicator of usable memory
+```
+
+-> If free is low but available is high, that is usually normal.
+-> If available is low and swap usage is increasing, that may mean real memory pressure.
+
+## explanation of MiB Swap:
+
+```text
+total = total swap space available
+free  = unused swap
+used  = how much memory has been moved to swap
+```
+
+Example: an old background process has memory it has not touched in hours. Linux may move that inactive memory to swap, freeing RAM for more useful things.
+
+
+Signs of real memory pressure:
+
+```text
+system feels slow or freezes
+high swap used
+low available memory
+constant disk activity
+swap usage keeps growing
+```
+
+analogy:
+
+```text
+RAM = your desk
+Swap = a filing cabinet
+
+If your desk gets crowded, you move papers to the cabinet.
+That prevents you from throwing papers away, but getting them back is slower.
+```
+
+# symlinks
+
+Symlinks are useful because they let one file or directory appear in another place without copying it.
+
+```bash
+ln -s /Desktop desktopsymlink #/Desktop is our target and desktopsymlink is our symlink
+```
+
+result:
+
+![](images/screenshot-20260630-145105.png)
+
+
+# background process
+
+means:
+
+```
+the shell does not wait for the job
+the job cannot normally read from the terminal
+the job can still write to the terminal
+```
+
+`some_command &` -> & makes a command to become background
+
+# stty
+
+`stty` used to view or change terminal settings
+
+```bash
+stty -a #show setttings for the current terminal: special keys, echo behaviour, flow control etc
+stty tostop #if a background process tries to write to the terminal, stop it.
+stty -tostop #disable tostop
+```
+
+![](images/screenshot-20260630-150132.png)
+
+![](images/screenshot-20260630-150725.png)
+
+# suid
+
+SUID = set user ID
+
+a `bit` means a tiny on/off switch:
+
+```text
+0 = off
+1 = on
+```
+
+SUID = a special on/off switch on an executable file
+
+Normally, when you run a program, it runs as you.
+
+```text
+alice runs a program
+program runs as alice
+Linux checks permissions as if alice is doing the action
+```
+
+With SUID enabled, the program runs as the file owner, not as user who started it.
+
+Example:
+
+```text
+file owner = root
+alice runs the program
+program runs as root
+Linux checks permissions as if root is doing the action -> dangerous, cause regular users can run root files
+```
+
+you can see SUID with `ls -l`
+
+normal executable permission = x: -rwxr-xr-x
+SUID executable permissions = s: -rwsr-xr-x
+
+```text
+lets normal users perform specific privileged tasks
+avoids giving users full root access
+used by carefully written system tools
+```
+
+SUID usually works only on exectutable binary files. SUID is mostly ignored on scripts like: .sh .py .pl
+
+`chmod u+s file` -> SUID
+
+![](images/screenshot-20260630-152527.png)
+
+same for group is called -> SGID
+
+`chmod g+s file` => SGID
+![](images/screenshot-20260630-152629.png)
+
+
+
+
+
