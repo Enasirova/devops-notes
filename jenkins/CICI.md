@@ -5,3 +5,16 @@ https://cnfl.myfortuna.eu/pages/viewpage.action?pageId=360066123&spaceKey=RND&ti
 SSH KEY FORMAT SHOUD BE RSA IN PEM FORMAT
 JENKINS HAS TO HAVE ADMIN RIGHTS
 DISK SPACE SHOULD BE SUFFICIENT
+
+
+1) disucss with durchanek the alerts on amount of branches in specific 
+
+
+! discuss with misha: documentation needs to be updated + docs on branches, alerts on disc. whatever concerns the developers.
+
+! discuss with durchanek the alerts on amount of branches. 
+
+! ours pace for jenkins
+
+! grafana alerts (linked to zabix) -> reports to see amount of branches.
+
